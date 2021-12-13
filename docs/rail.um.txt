@@ -1,0 +1,74 @@
+rail.um
+________________________________________________________________________________
+
+
+type Tile* = struct {
+	parent: int
+	index: int
+	rotation: int
+	pos: th.Vf2
+}
+
+
+
+________________________________________________________________________________
+
+
+type Switch* = struct {
+	segs: []int
+	// which end of respective segment is part of the switch
+	ends: []int
+	pos: th.Vf2
+}
+
+
+Switch is multiple segments ending in one place. Even signal is a switch,
+but with only two segments.
+
+________________________________________________________________________________
+
+
+type Segment* = struct {
+	swis: [2]int
+	tiles: []Tile
+	index: int
+}
+
+
+
+________________________________________________________________________________
+
+
+type System* = struct {
+	tiles: [][]^Tile
+	swis: []Switch
+	segs: []Segment
+}
+
+
+
+________________________________________________________________________________
+
+
+fn (s: ^System) reset*()
+
+
+________________________________________________________________________________
+
+
+fn (s: ^Segment) splitAt*(sys: ^System, tile: int): ^Switch
+
+replaces `tile` by a switch connecting both sides of the segment and returns
+the new switch or null. if tile is the start or end, it doesn't replace it
+
+________________________________________________________________________________
+
+
+fn (s: ^System)	placeTiles*(tiles: []Tile)
+
+places tiles onto map. automatically creates segments and connects them
+to a switch if the tiles pass through it.
+
+________________________________________________________________________________
+
+
