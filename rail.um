@@ -17,6 +17,7 @@ type Switch* = struct {
 	// which end of respective segment is part of the switch
 	ends: []int
 	pos: th.Vf2
+	index: int
 }
 
 type Segment* = struct {
@@ -26,6 +27,7 @@ type Segment* = struct {
 }
 
 type System* = struct {
+	swisMap: [][]^Switch
 	tiles: [][]^Tile
 	swis: []Switch
 	segs: []Segment
@@ -38,8 +40,21 @@ fn (s: ^System) reset*() {
 		}
 	}
 
+	for i, l in s.swisMap {
+		for j, _ in l {
+			s.swisMap[i][j] = null
+		}
+	}
+
 	s.swis = []Switch{}
 	s.segs = []Segment{}
+}
+
+fn (s: ^Segment) connect*(sw: ^Switch, side: int) {
+	s.swis[side] = sw.index
+
+	sw.segs = append(sw.segs, s.index)
+	sw.ends = append(sw.ends, side)
 }
 
 // replaces `tile` by a switch connecting both sides of the segment and returns
@@ -78,8 +93,40 @@ fn (s: ^Segment) splitAt*(sys: ^System, tile: int): ^Switch {
 	return sw
 }
 
+fn (sys: ^System) mkSwitch(pos: th.Vf2): ^Switch {
+	sys.swis = append(sys.swis, Switch{})
+	sw := &sys.swis[len(sys.swis) - 1]
+	sw.segs = []int{}
+	sw.ends = []int{}
+	sw.pos = pos
+	sw.index = len(sys.swis) - 1
+}
+
+fn (sys: ^System) mkSegment(): ^Segment {
+	sys.segs = append(sys.segs, Segment{})
+	sg := &sys.segs[len(sys.segs)- 1]
+	sg.index = len(sys.segs) - 1
+	return sg
+}
+
 // places tiles onto map. automatically creates segments and connects them
 // to a switch if the tiles pass through it.
-fn (s: ^System)	placeTiles*(tiles: []Tile) {
+fn (sys: ^System)	placeTiles*(tiles: []Tile) {
+	sg := sys.mkSegment
 
+	sg.tiles = slice(tiles, 1)
+	if sw := sys.swisMap[tiles[0].pos.x][tiles[0].pos.y]; sw != null {
+		sg.connect(sw, 0)
+	} else {
+		sg.connect(sys.mkSwitch(tiles[0].pos), 0)
+	}
+
+	last := 1
+	for i:=1; i < len(tiles); i++ {
+		t := tiles[i]
+		if sw := sys.swisMap[t.pos.x][t.pos.y]; sw != null {
+			sg.connect(sw, 1)
+			sg.tiles = slice(tiles, last, i)	
+		}
+	}
 }
