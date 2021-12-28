@@ -1,36 +1,47 @@
 
 import (
 	"th.um"
+	"rect.um"
+	"canvas.um"
 )
 
-type Tile* = struct {
-	parent: int
-	index: int
-	rotation: int
-	pos: th.Vf2
-}
+type (
+	Tile* = struct {
+		parent: ^Segment
+		index: int
+		rotation: th.fu
+		pos: th.Vf2
+	}
 
-// Switch is multiple segments ending in one place. Even signal is a switch,
-// but with only two segments.
-type Switch* = struct {
-	segs: []int
-	// which end of respective segment is part of the switch
-	ends: []int
-	pos: th.Vf2
-	index: int
-}
+	// Switch is multiple segments ending in one place. Even signal is a switch,
+	// but with only two segments.
+	Switch* = struct {
+		segs: []^Segment
+		// which end of respective segment is part of the switch
+		ends: []int
+		pos: th.Vf2
+	}
 
-type Segment* = struct {
-	swis: [2]int
-	tiles: []Tile
-	index: int
-}
+	Segment* = struct {
+		swis: [2]^Switch
+		tiles: []Tile
+	}
+)
 
 type System* = struct {
 	swisMap: [][]^Switch
 	tiles: [][]^Tile
-	swis: []Switch
-	segs: []Segment
+	swis: []^Switch
+	segs: []^Segment
+}
+
+// still hardcoded. todo
+fn worldToSys*(p: th.Vf2): th.Vf2 {
+	return p.div(th.Vf2{2, 2})
+}
+
+fn sysToWorld*(p: th.Vf2): th.Vf2 {
+	return p.mul(th.Vf2{2, 2})
 }
 
 fn (s: ^System) reset*() {
@@ -46,87 +57,231 @@ fn (s: ^System) reset*() {
 		}
 	}
 
-	s.swis = []Switch{}
-	s.segs = []Segment{}
+	s.swis = []^Switch{}
+	s.segs = []^Segment{}
+}
+
+fn (sys: ^System) initSize(x, y: int) {
+	sys.tiles = make([][]^Tile, x)
+	for i, c in sys.tiles {
+		sys.tiles[i] = make([]^Tile, y)
+	}
+
+	sys.swisMap = make([][]^Switch, x)
+	for i, c in sys.swisMap {
+		sys.swisMap[i] = make([]^Switch, y)
+	}
+}
+
+fn (sw: ^Switch) rm(sys: ^System) {
+	if len(sw.segs) != 0 {
+		return
+	}
+
+	for i, s in sys.swis {
+		if s == sw {
+			sys.swis = delete(sys.swis, i)
+		}
+	}
 }
 
 fn (s: ^Segment) connect*(sw: ^Switch, side: int) {
-	s.swis[side] = sw.index
+	s.swis[side] = sw
 
-	sw.segs = append(sw.segs, s.index)
+	sw.segs = append(sw.segs, s)
 	sw.ends = append(sw.ends, side)
+}
+
+fn (sg: ^Segment) disconnect*(sys: ^System, sw: ^Switch) {
+	index := -1
+	for i, s in sw.segs {
+		if s == sg {
+			index = i
+			break
+		}
+	}
+
+	sw.segs = delete(sw.segs, index)
+	sw.ends = delete(sw.ends, index)
+
+	sw.rm(sys)
+}
+
+fn (sg: ^Segment) rm(sys: ^System) {
+	for i, s in sys.segs {
+		if s == sg {
+			sys.segs = delete(sys.segs, i)
+		}
+	}
+}
+
+fn (sys: ^System) mkSwitch(pos: th.Vf2): ^Switch {
+	sys.swis = append(sys.swis, new(Switch))
+	sw := sys.swis[len(sys.swis) - 1]
+	sw.segs = []^Segment{}
+	sw.ends = []int{}
+	sw.pos = pos
+	sys.swisMap[round(pos.x)][round(pos.y)] = sw
+	return sw
+}
+
+fn (sys: ^System) mkSegment(): ^Segment {
+	sys.segs = append(sys.segs, new(Segment))
+	sg := sys.segs[len(sys.segs)- 1]
+	return sg
 }
 
 // replaces `tile` by a switch connecting both sides of the segment and returns
 // the new switch or null. if tile is the start or end, it doesn't replace it
 fn (s: ^Segment) splitAt*(sys: ^System, tile: int): ^Switch {
 	if tile > len(s.tiles) { return null }
-	if tile == 0 { return &sys.swis[s.swis[0]] }
-	if tile == len(s.tiles) - 1 { return &sys.swis[s.swis[1]] }
+	if tile == 0 { return s.swis[0] }
+	if tile == len(s.tiles) - 1 { return s.swis[1] }
 
 	// add the switch and init it
-	sys.swis = append(sys.swis, Switch{})
-	sw := &sys.swis[len(sys.swis) - 1]
-	sw.segs = make([]int, 2)
+	sw := sys.mkSwitch(s.tiles[tile].pos)
+	sw.segs = make([]^Segment, 2)
 	sw.ends = make([]int, 2)
-	sw.pos = s.tiles[tile].pos
 
 	// add the segment
-	sys.segs = append(sys.segs, Segment{})
-	sg := &sys.segs[len(sys.segs) - 1]
+	sg := sys.mkSegment()
 
 	// set tile arrays
 	sg.tiles = slice(s.tiles, tile + 1)
 	s.tiles = slice(s.tiles, 0, tile)
 
 	// set inding switches
-	sg.swis[0] = len(sys.segs) - 1
+	sg.swis[0] = sw
 	sg.swis[1] = s.swis[1]
 	s.swis[1] = sg.swis[0]
 
 	// set switch data
-	sw.segs[0] = s.index
-	sw.segs[1] = sg.index
+	sw.segs[0] = s
+	sw.segs[1] = sg
 	sw.ends[0] = 1
 	sw.ends[1] = 0
 
 	return sw
 }
 
-fn (sys: ^System) mkSwitch(pos: th.Vf2): ^Switch {
-	sys.swis = append(sys.swis, Switch{})
-	sw := &sys.swis[len(sys.swis) - 1]
-	sw.segs = []int{}
-	sw.ends = []int{}
-	sw.pos = pos
-	sw.index = len(sys.swis) - 1
-}
-
-fn (sys: ^System) mkSegment(): ^Segment {
-	sys.segs = append(sys.segs, Segment{})
-	sg := &sys.segs[len(sys.segs)- 1]
-	sg.index = len(sys.segs) - 1
-	return sg
-}
-
 // places tiles onto map. automatically creates segments and connects them
 // to a switch if the tiles pass through it.
 fn (sys: ^System)	placeTiles*(tiles: []Tile) {
-	sg := sys.mkSegment
+	sg := sys.mkSegment()
 
 	sg.tiles = slice(tiles, 1)
-	if sw := sys.swisMap[tiles[0].pos.x][tiles[0].pos.y]; sw != null {
+	if sw := sys.swisMap[round(tiles[0].pos.x)][round(tiles[0].pos.y)]; sw != null {
+		sg.connect(sw, 0)
+	} else if isgt := sys.tiles[round(tiles[0].pos.x)][round(tiles[0].pos.y)]; isgt != null {
+		sw := isgt.parent.splitAt(sys, sys.tiles[round(tiles[0].pos.x)][round(tiles[0].pos.y)].index)
 		sg.connect(sw, 0)
 	} else {
 		sg.connect(sys.mkSwitch(tiles[0].pos), 0)
 	}
 
 	last := 1
-	for i:=1; i < len(tiles); i++ {
+	for i:=1; i < len(tiles) - 1; i++ {
 		t := tiles[i]
-		if sw := sys.swisMap[t.pos.x][t.pos.y]; sw != null {
+		var toConnect: ^Switch
+
+		// find whether current segment should be closed and a new one created
+		if sw := sys.swisMap[round(t.pos.x)][round(t.pos.y)]; sw != null {
 			sg.connect(sw, 1)
-			sg.tiles = slice(tiles, last, i)	
+			toConnect = sw
+		} else if isgt := sys.tiles[round(t.pos.x)][round(t.pos.y)]; isgt != null {
+			sw := isgt.parent.splitAt(sys, sys.tiles[round(t.pos.x)][round(t.pos.y)].index)
+			sg.connect(sw, 1)
+			toConnect = sw
 		}
+
+		if toConnect != null {
+			sg.tiles = slice(tiles, last, i)	
+			// fill sys tile map with tiles
+			for i, t in sg.tiles {
+				sys.tiles[round(t.pos.x)][round(t.pos.y)] = &sg.tiles[i]
+				sg.tiles[i].parent = sg
+				sg.tiles[i].index = i
+			}
+
+			// create the new segment
+			sg = sys.mkSegment()
+			sg.connect(toConnect, 0)
+			last = i + 1
+		}
+	}
+	
+	sg.tiles = slice(tiles, last)
+	t := tiles[len(tiles) - 1]
+	if sw := sys.swisMap[round(t.pos.x)][round(t.pos.y)]; sw != null {
+		sg.connect(sw, 1)
+	} else if isgt := sys.tiles[round(t.pos.x)][round(t.pos.y)]; isgt != null {
+		sw := isgt.parent.splitAt(sys, sys.tiles[round(t.pos.x)][round(t.pos.y)].index)
+		sg.connect(sw, 1)
+	} else {
+		sg.connect(sys.mkSwitch(t.pos), 1)
+	}
+	for i, t in sg.tiles {
+		sys.tiles[round(t.pos.x)][round(t.pos.y)] = &sg.tiles[i]
+		sg.tiles[i].parent = sg
+		sg.tiles[i].index = i
+	}
+}
+
+// reduces rails between start and end inclusive
+fn (sg: ^Segment) reduce*(sys: ^System, start, end: int) {
+	for i:=start; i < end; i++ {
+		x := round(sg.tiles[i].pos.x)
+		y := round(sg.tiles[i].pos.y)
+		sys.tiles[x][y] = null
+	}
+
+	// whole segment
+	if start == 0 && end >= len(sg.tiles) - 1 {
+		sg.disconnect(sys, sg.swis[0])
+		sg.disconnect(sys, sg.swis[1])
+		sg.rm(sys)
+	// trim end
+	} else if start == 0 {
+		sg.disconnect(sys, sg.swis[0])
+		t := sg.tiles[end + 1]
+		sg.tiles = slice(sg.tiles, end + 1)
+		sw := sys.mkSwitch(t.pos)
+		sg.connect(sw, 0)
+	// trim start
+	} else if end >= len(sg.tiles) - 1 {
+		sg.disconnect(sys, sg.swis[1])
+		t := sg.tiles[start - 1]
+		sg.tiles = slice(sg.tiles, 0, start - 1)
+		sw := sys.mkSwitch(t.pos)
+		sg.connect(sw, 1)
+	// reduce middle
+	} else {
+		sg.disconnect(sys, sg.swis[1])
+
+		sg2 := sys.mkSegment()
+		sg2.connect(sg.swis[1], 1)
+		sg2.tiles = slice(sg.tiles, end + 1)
+		sg2.connect(sys.mkSwitch(sg.tiles[end + 1].pos), 0)
+
+		sg.connect(sys.mkSwitch(sg.tiles[start - 1].pos), 1)
+		sg.tiles = slice(sg.tiles, 0, start - 1)
+	}
+}
+
+fn (sys: ^System) draw(cam: rect.Rect) {
+	const cellSize = 2
+	
+	canvas.setColor(th.black)
+	for sg in sys.segs {
+		for t in sg.tiles {
+			canvas.drawRect(rect.mk(
+				t.pos.x * cellSize, t.pos.y * cellSize, cellSize, cellSize))
+		}
+	}
+
+	canvas.setColor(th.red)
+	for sw in sys.swis {
+		canvas.drawRect(rect.mk(
+			sw.pos.x * cellSize, sw.pos.y * cellSize, cellSize, cellSize))
 	}
 }

@@ -1,0 +1,90 @@
+
+import (
+	"th.um"
+	"rect.um"
+	"misc.um"
+	"input.um"
+	"canvas.um"
+
+	"rail.um"
+)
+
+const (
+	edOff = 0
+	edPlace
+)
+
+var (
+	mode: int
+	sys*: rail.System
+
+	// place mode vars
+	origin: th.Vf2
+	hasOrigin: bool
+	angle: th.fu
+)
+
+fn reset*() {
+	mode = edPlace
+
+	hasOrigin = false
+}
+
+fn init*(s: rail.System) {
+	reset()
+	sys = s
+}
+
+fn place*(mp: th.Vf2) {
+	origin = origin.rnd()
+	mp = mp.rnd()
+
+	tiles := make([]rail.Tile, round(origin.distanceTo(mp)))
+	n := mp.sub(origin).norm()
+	printf("%s %d\n", repr(mp.sub(origin)), len(tiles))
+	p := origin
+	for i, t in tiles {
+		tiles[i].pos = p
+		tiles[i].rotation = angle
+		p = p.add(n)
+	}
+	printf("%s\n", repr(tiles))
+	sys.placeTiles(tiles)
+}
+
+fn snap*(v, s: th.fu): th.fu {
+ return round(v / s) * s
+}
+
+fn handle*(cam: rect.Rect) {
+	switch mode {
+	case edPlace:
+		mp := rail.worldToSys(input.getMousePos()).rnd()
+
+		if hasOrigin {
+			if origin.x != mp.x && origin.y != mp.y {
+				angle = snap(mp.angleTo(origin), 45)
+			}
+			printf("%d\n", round(angle + 90) % 360)
+			p2 := th.Vf2{ 0, -round(origin.distanceTo(mp)) }.rotated(th.Vf2{0, 0}, angle + 90).add(origin).rnd()
+
+			if !input.isPressed(input.mouse1) {
+				place(p2)
+				hasOrigin = false
+			}
+
+			if input.isJustPressed(input.mouse3) {
+				hasOrigin = false
+			}
+
+      camOff := th.Vf2{cam.w / 2, cam.h / 2}
+
+			canvas.drawLine(rail.sysToWorld(origin).add(th.Vf2{0.5, 0.5}), rail.sysToWorld(p2).add(th.Vf2{0.5, 0.5}), 2, th.cyan)
+		} else {
+			if input.isJustPressed(input.mouse1) {
+				hasOrigin = true
+				origin = mp
+			}
+		}
+	}
+}

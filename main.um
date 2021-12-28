@@ -6,6 +6,7 @@ import (
 	"window.um"
 
 	"rail.um"
+	"editor.um"
 	"global.um"
 )
 
@@ -14,15 +15,39 @@ fn main() {
 
 	global.cam = rect.mk(0, 0, 192, 108)
 
+	sys := rail.System{}
+	sys.initSize(100, 100)
+	sys.reset()
+
+	tiles := make([]rail.Tile, 40)	
+	for i, t in tiles {
+		t.index = i
+		t.pos = th.Vf2{3 + i, 20}
+		tiles[i] = t
+	}
+	sys.placeTiles(tiles)
+
+	for i, t in tiles {
+		t.index = i
+		t.pos = th.Vf2{25, 10 + i}
+		tiles[i] = t
+	}
+	sys.placeTiles(tiles)
+
+	sys.segs[0].splitAt(&sys, 14)
+
+	sys.segs[1].reduce(&sys, 1, 8)
+
+	printf("%d\n", len(sys.segs))
+
+	editor.init(sys)
+
 	for window.cycle(global.cam) {
 		canvas.setColor(th.white)
 		canvas.drawRect(global.cam)
 
-		switch global.scene {
-		case global.NONE:
-			return
-		}
+		editor.handle(global.cam)
 
-		canvas.drawText("hello world", th.Vf2{2, 2}, th.black, 2)
+		editor.sys.draw(global.cam)
 	}
 }
