@@ -35,20 +35,21 @@ fn init*(s: rail.System) {
 	sys = s
 }
 
-fn place*(mp: th.Vf2) {
-	origin = origin.rnd()
-	mp = mp.rnd()
-
-	tiles := make([]rail.Tile, round(origin.distanceTo(mp)))
-	n := mp.sub(origin).norm()
-	printf("%s %d\n", repr(mp.sub(origin)), len(tiles))
+fn genPlaceTiles(p2: th.Vf2): []rail.Tile {
+	n := p2.sub(origin).norm()
+	tiles := make([]rail.Tile, round(origin.distanceTo(p2) / n.mag()) + 1)
 	p := origin
 	for i, t in tiles {
 		tiles[i].pos = p
 		tiles[i].rotation = angle
 		p = p.add(n)
 	}
-	printf("%s\n", repr(tiles))
+
+	return tiles
+}
+
+fn place*(p2: th.Vf2) {
+	tiles := genPlaceTiles(p2)
 	sys.placeTiles(tiles)
 }
 
@@ -59,18 +60,20 @@ fn snap*(v, s: th.fu): th.fu {
 fn handle*(cam: rect.Rect) {
 	switch mode {
 	case edPlace:
-		mp := rail.worldToSys(input.getMousePos()).rnd()
+		mp := rail.worldToSys(input.getMousePos()).flr()
 
 		if hasOrigin {
-			if origin.x != mp.x && origin.y != mp.y {
-				angle = snap(mp.angleTo(origin), 45)
-			}
-			printf("%d\n", round(angle + 90) % 360)
-			p2 := th.Vf2{ 0, -round(origin.distanceTo(mp)) }.rotated(th.Vf2{0, 0}, angle + 90).add(origin).rnd()
+			p2 := th.Vf2{ 0, -round(origin.distanceTo(mp)) }.rotated(th.Vf2{0, 0}, angle + 90).add(origin).flr()
+			canPlace := false
 
-			if !input.isPressed(input.mouse1) {
-				place(p2)
-				hasOrigin = false
+			if origin.x != p2.x || origin.y != p2.y {
+				angle = snap(mp.angleTo(origin), 45)
+				canPlace = sys.canPlace(genPlaceTiles(p2))
+
+				if !input.isPressed(input.mouse1) {
+					if canPlace { place(p2) }
+					hasOrigin = false
+				}
 			}
 
 			if input.isJustPressed(input.mouse3) {
@@ -79,7 +82,11 @@ fn handle*(cam: rect.Rect) {
 
       camOff := th.Vf2{cam.w / 2, cam.h / 2}
 
-			canvas.drawLine(rail.sysToWorld(origin).add(th.Vf2{0.5, 0.5}), rail.sysToWorld(p2).add(th.Vf2{0.5, 0.5}), 2, th.cyan)
+			color := th.cyan
+			if !canPlace {
+				color = th.red
+			}
+			canvas.drawLine(rail.sysToWorld(origin).add(th.Vf2{0.5, 0.5}), rail.sysToWorld(p2).add(th.Vf2{0.5, 0.5}), 2, color)
 		} else {
 			if input.isJustPressed(input.mouse1) {
 				hasOrigin = true

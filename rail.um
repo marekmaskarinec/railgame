@@ -44,6 +44,10 @@ fn sysToWorld*(p: th.Vf2): th.Vf2 {
 	return p.mul(th.Vf2{2, 2})
 }
 
+fn (sys: ^System) at*(p: th.Vf2): ^Tile {
+	return sys.tiles[round(p.x)][round(p.y)]
+}
+
 fn (s: ^System) reset*() {
 	for i, l in s.tiles {
 		for j, _ in l {
@@ -266,6 +270,23 @@ fn (sg: ^Segment) reduce*(sys: ^System, start, end: int) {
 		sg.connect(sys.mkSwitch(sg.tiles[start - 1].pos), 1)
 		sg.tiles = slice(sg.tiles, 0, start - 1)
 	}
+}
+
+fn (sys: ^System) canPlace*(tiles: []Tile): bool {
+	var sg: ^Segment
+	for t in tiles {
+		t2 := sys.at(t.pos)
+		if t2 == null {
+			continue
+		}
+
+		if sg == t2.parent {
+			return false
+		}
+		sg = t2.parent
+	}
+
+	return true
 }
 
 fn (sys: ^System) draw(cam: rect.Rect) {

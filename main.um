@@ -46,8 +46,7 @@ fn main() {
 		canvas.setColor(th.white)
 		canvas.drawRect(global.cam)
 
-		editor.handle(global.cam)
-
 		editor.sys.draw(global.cam)
+		editor.handle(global.cam)
 	}
 }
