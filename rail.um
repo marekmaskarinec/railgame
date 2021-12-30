@@ -44,8 +44,8 @@ fn sysToWorld*(p: th.Vf2): th.Vf2 {
 	return p.mul(th.Vf2{2, 2})
 }
 
-fn (sys: ^System) at*(p: th.Vf2): ^Tile {
-	return sys.tiles[round(p.x)][round(p.y)]
+fn (sys: ^System) at*(p: th.Vf2): ^^Tile {
+	return &sys.tiles[round(p.x)][round(p.y)]
 }
 
 fn (s: ^System) reset*() {
@@ -154,6 +154,19 @@ fn (s: ^Segment) splitAt*(sys: ^System, tile: int): ^Switch {
 	sg.tiles = slice(s.tiles, tile + 1)
 	s.tiles = slice(s.tiles, 0, tile)
 
+	// fix tile map
+	for i, t in s.tiles {
+		sys.at(t.pos)^ = &s.tiles[i]
+	}
+
+	for i, t in sg.tiles {
+		sys.at(t.pos)^ = &sg.tiles[i]
+		sg.tiles[i].index -= tile + 1
+		sg.tiles[i].parent = sg
+	}
+
+	sys.at(sw.pos)^ = null
+
 	// set inding switches
 	sg.swis[0] = sw
 	sg.swis[1] = s.swis[1]
@@ -193,7 +206,7 @@ fn (sys: ^System)	placeTiles*(tiles: []Tile) {
 			sg.connect(sw, 1)
 			toConnect = sw
 		} else if isgt := sys.tiles[round(t.pos.x)][round(t.pos.y)]; isgt != null {
-			sw := isgt.parent.splitAt(sys, sys.tiles[round(t.pos.x)][round(t.pos.y)].index)
+			sw := isgt.parent.splitAt(sys, isgt.index)
 			sg.connect(sw, 1)
 			toConnect = sw
 		}
@@ -275,7 +288,7 @@ fn (sg: ^Segment) reduce*(sys: ^System, start, end: int) {
 fn (sys: ^System) canPlace*(tiles: []Tile): bool {
 	var sg: ^Segment
 	for t in tiles {
-		t2 := sys.at(t.pos)
+		t2 := sys.at(t.pos)^
 		if t2 == null {
 			continue
 		}
