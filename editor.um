@@ -63,11 +63,12 @@ fn handle*(cam: rect.Rect) {
 		mp := rail.worldToSys(input.getMousePos()).flr()
 
 		if hasOrigin {
-			p2 := th.Vf2{ 0, -round(origin.distanceTo(mp)) }.rotated(th.Vf2{0, 0}, angle + 90).add(origin).flr()
+			p2 := th.Vf2{ 0, -origin.distanceTo(mp) }.rotated(th.Vf2{0, 0}, angle + 90).add(origin).rnd()
 			canPlace := false
 
 			if origin.x != p2.x || origin.y != p2.y {
 				angle = snap(mp.angleTo(origin), 45)
+				printf("%f\n", angle)
 				canPlace = sys.canPlace(genPlaceTiles(p2))
 
 				if !input.isPressed(input.mouse1) {
@@ -86,7 +87,7 @@ fn handle*(cam: rect.Rect) {
 			if !canPlace {
 				color = th.red
 			}
-			canvas.drawLine(rail.sysToWorld(origin).add(th.Vf2{0.5, 0.5}), rail.sysToWorld(p2).add(th.Vf2{0.5, 0.5}), 2, color)
+			canvas.drawLine(rail.sysToWorld(origin).add(th.Vf2{1, 1}), rail.sysToWorld(p2).add(th.Vf2{1, 1}), 2, color)
 		} else {
 			if input.isJustPressed(input.mouse1) {
 				hasOrigin = true

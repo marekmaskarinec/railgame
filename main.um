@@ -19,29 +19,7 @@ fn main() {
 	sys.initSize(100, 100)
 	sys.reset()
 
-	tiles := make([]rail.Tile, 40)	
-	for i, t in tiles {
-		t.index = i
-		t.pos = th.Vf2{3 + i, 20}
-		tiles[i] = t
-	}
-	sys.placeTiles(tiles)
-
-	for i, t in tiles {
-		t.index = i
-		t.pos = th.Vf2{25, 10 + i}
-		tiles[i] = t
-	}
-	sys.placeTiles(tiles)
-
-	sys.segs[0].splitAt(&sys, 14)
-
-	sys.segs[1].reduce(&sys, 1, 8)
-
-	printf("%d\n", len(sys.segs))
-
 	editor.init(sys)
-
 	for window.cycle(global.cam) {
 		canvas.setColor(th.white)
 		canvas.drawRect(global.cam)

@@ -45,7 +45,7 @@ fn sysToWorld*(p: th.Vf2): th.Vf2 {
 }
 
 fn (sys: ^System) at*(p: th.Vf2): ^^Tile {
-	return &sys.tiles[round(p.x)][round(p.y)]
+	return &sys.tiles[trunc(p.x)][trunc(p.y)]
 }
 
 fn (s: ^System) reset*() {
@@ -287,7 +287,19 @@ fn (sg: ^Segment) reduce*(sys: ^System, start, end: int) {
 
 fn (sys: ^System) canPlace*(tiles: []Tile): bool {
 	var sg: ^Segment
-	for t in tiles {
+	v := tiles[1].pos.sub(tiles[0].pos)
+	left := v.rotated(th.Vf2{}, -90)
+	right := v.rotated(th.Vf2{}, 90)
+	v = v.div(th.Vf2{2, 2})
+	for i, t in tiles {
+		// if there is an adjacent rail somewhere else than the start and en
+		lt := sys.at(t.pos.add(left).add(v))^
+		rt := sys.at(t.pos.add(right).add(v))^
+		if (lt != null && round(fabs(lt.rotation - t.rotation)) % 180 == 0) ||
+			(rt != null && round(fabs(rt.rotation - t.rotation)) % 180 == 0) {
+			return false
+		}
+
 		t2 := sys.at(t.pos)^
 		if t2 == null {
 			continue
