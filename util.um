@@ -1,0 +1,18 @@
+
+import (
+	"th.um"
+)
+
+fn maxf*(v1, v2: th.fu): th.fu {
+	if v1 > v2 { return v1 }
+	return v2
+}
+
+fn minf*(v1, v2: th.fu): th.fu {
+	if v1 < v2 { return v1 }
+	return v2
+}
+
+fn snap*(v, s: th.fu): th.fu {
+	return round(v / s) * s
+}

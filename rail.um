@@ -3,6 +3,9 @@ import (
 	"th.um"
 	"rect.um"
 	"canvas.um"
+
+	"util.um"
+	"global.um"
 )
 
 type (
@@ -48,6 +51,10 @@ fn (sys: ^System) at*(p: th.Vf2): ^^Tile {
 	return &sys.tiles[trunc(p.x)][trunc(p.y)]
 }
 
+fn (sys: ^System) atSwis(p: th.Vf2): ^^Switch {
+	return &sys.swisMap[trunc(p.x)][trunc(p.y)]
+}
+
 fn (s: ^System) reset*() {
 	for i, l in s.tiles {
 		for j, _ in l {
@@ -82,18 +89,12 @@ fn (sw: ^Switch) rm(sys: ^System) {
 		return
 	}
 
+	sys.atSwis(sw.pos)^ = null
 	for i, s in sys.swis {
 		if s == sw {
 			sys.swis = delete(sys.swis, i)
 		}
 	}
-}
-
-fn (s: ^Segment) connect*(sw: ^Switch, side: int) {
-	s.swis[side] = sw
-
-	sw.segs = append(sw.segs, s)
-	sw.ends = append(sw.ends, side)
 }
 
 fn (sg: ^Segment) disconnect*(sys: ^System, sw: ^Switch) {
@@ -105,13 +106,30 @@ fn (sg: ^Segment) disconnect*(sys: ^System, sw: ^Switch) {
 		}
 	}
 
-	sw.segs = delete(sw.segs, index)
-	sw.ends = delete(sw.ends, index)
+	if index != -1 {
+		sw.segs = delete(sw.segs, index)
+		sw.ends = delete(sw.ends, index)
+	}
 
-	sw.rm(sys)
+	if len(sw.segs) == 0 {
+		sw.rm(sys)
+	}
+}
+
+fn (s: ^Segment) connect*(sys: ^System, sw: ^Switch, side: int) {
+	if s.swis[side] != null {
+		s.disconnect(sys, s.swis[side])
+	}
+	s.swis[side] = sw
+
+	sw.segs = append(sw.segs, s)
+	sw.ends = append(sw.ends, side)
 }
 
 fn (sg: ^Segment) rm(sys: ^System) {
+	sg.disconnect(sys, sg.swis[0])
+	sg.disconnect(sys, sg.swis[1])
+
 	for i, s in sys.segs {
 		if s == sg {
 			sys.segs = delete(sys.segs, i)
@@ -135,6 +153,14 @@ fn (sys: ^System) mkSegment(): ^Segment {
 	return sg
 }
 
+fn (sg: ^Segment) rebuildTiles(sys: ^System) {
+	for i, t in sg.tiles {
+		sg.tiles[i].index = i
+		sg.tiles[i].parent = sg
+		sys.at(sg.tiles[i].pos)^ = &sg.tiles[i]
+	}
+}
+
 // replaces `tile` by a switch connecting both sides of the segment and returns
 // the new switch or null. if tile is the start or end, it doesn't replace it
 fn (s: ^Segment) splitAt*(sys: ^System, tile: int): ^Switch {
@@ -144,8 +170,6 @@ fn (s: ^Segment) splitAt*(sys: ^System, tile: int): ^Switch {
 
 	// add the switch and init it
 	sw := sys.mkSwitch(s.tiles[tile].pos)
-	sw.segs = make([]^Segment, 2)
-	sw.ends = make([]int, 2)
 
 	// add the segment
 	sg := sys.mkSegment()
@@ -167,16 +191,9 @@ fn (s: ^Segment) splitAt*(sys: ^System, tile: int): ^Switch {
 
 	sys.at(sw.pos)^ = null
 
-	// set inding switches
-	sg.swis[0] = sw
-	sg.swis[1] = s.swis[1]
-	s.swis[1] = sg.swis[0]
-
-	// set switch data
-	sw.segs[0] = s
-	sw.segs[1] = sg
-	sw.ends[0] = 1
-	sw.ends[1] = 0
+	sg.connect(sys, sw, 0)
+	sg.connect(sys, s.swis[1], 1)
+	s.connect(sys, sw, 1)
 
 	return sw
 }
@@ -188,12 +205,12 @@ fn (sys: ^System)	placeTiles*(tiles: []Tile) {
 
 	sg.tiles = slice(tiles, 1)
 	if sw := sys.swisMap[round(tiles[0].pos.x)][round(tiles[0].pos.y)]; sw != null {
-		sg.connect(sw, 0)
+		sg.connect(sys, sw, 0)
 	} else if isgt := sys.tiles[round(tiles[0].pos.x)][round(tiles[0].pos.y)]; isgt != null {
 		sw := isgt.parent.splitAt(sys, sys.tiles[round(tiles[0].pos.x)][round(tiles[0].pos.y)].index)
-		sg.connect(sw, 0)
+		sg.connect(sys, sw, 0)
 	} else {
-		sg.connect(sys.mkSwitch(tiles[0].pos), 0)
+		sg.connect(sys, sys.mkSwitch(tiles[0].pos), 0)
 	}
 
 	last := 1
@@ -203,11 +220,11 @@ fn (sys: ^System)	placeTiles*(tiles: []Tile) {
 
 		// find whether current segment should be closed and a new one created
 		if sw := sys.swisMap[round(t.pos.x)][round(t.pos.y)]; sw != null {
-			sg.connect(sw, 1)
+			sg.connect(sys, sw, 1)
 			toConnect = sw
 		} else if isgt := sys.tiles[round(t.pos.x)][round(t.pos.y)]; isgt != null {
 			sw := isgt.parent.splitAt(sys, isgt.index)
-			sg.connect(sw, 1)
+			sg.connect(sys, sw, 1)
 			toConnect = sw
 		}
 
@@ -222,7 +239,7 @@ fn (sys: ^System)	placeTiles*(tiles: []Tile) {
 
 			// create the new segment
 			sg = sys.mkSegment()
-			sg.connect(toConnect, 0)
+			sg.connect(sys, toConnect, 0)
 			last = i + 1
 		}
 	}
@@ -230,12 +247,12 @@ fn (sys: ^System)	placeTiles*(tiles: []Tile) {
 	sg.tiles = slice(tiles, last)
 	t := tiles[len(tiles) - 1]
 	if sw := sys.swisMap[round(t.pos.x)][round(t.pos.y)]; sw != null {
-		sg.connect(sw, 1)
+		sg.connect(sys, sw, 1)
 	} else if isgt := sys.tiles[round(t.pos.x)][round(t.pos.y)]; isgt != null {
 		sw := isgt.parent.splitAt(sys, sys.tiles[round(t.pos.x)][round(t.pos.y)].index)
-		sg.connect(sw, 1)
+		sg.connect(sys, sw, 1)
 	} else {
-		sg.connect(sys.mkSwitch(t.pos), 1)
+		sg.connect(sys, sys.mkSwitch(t.pos), 1)
 	}
 	for i, t in sg.tiles {
 		sys.tiles[round(t.pos.x)][round(t.pos.y)] = &sg.tiles[i]
@@ -254,8 +271,6 @@ fn (sg: ^Segment) reduce*(sys: ^System, start, end: int) {
 
 	// whole segment
 	if start == 0 && end >= len(sg.tiles) - 1 {
-		sg.disconnect(sys, sg.swis[0])
-		sg.disconnect(sys, sg.swis[1])
 		sg.rm(sys)
 	// trim end
 	} else if start == 0 {
@@ -263,24 +278,24 @@ fn (sg: ^Segment) reduce*(sys: ^System, start, end: int) {
 		t := sg.tiles[end + 1]
 		sg.tiles = slice(sg.tiles, end + 1)
 		sw := sys.mkSwitch(t.pos)
-		sg.connect(sw, 0)
+		sg.connect(sys, sw, 0)
 	// trim start
 	} else if end >= len(sg.tiles) - 1 {
 		sg.disconnect(sys, sg.swis[1])
 		t := sg.tiles[start - 1]
 		sg.tiles = slice(sg.tiles, 0, start - 1)
 		sw := sys.mkSwitch(t.pos)
-		sg.connect(sw, 1)
+		sg.connect(sys, sw, 1)
 	// reduce middle
 	} else {
 		sg.disconnect(sys, sg.swis[1])
 
 		sg2 := sys.mkSegment()
-		sg2.connect(sg.swis[1], 1)
+		sg2.connect(sys, sg.swis[1], 1)
 		sg2.tiles = slice(sg.tiles, end + 1)
-		sg2.connect(sys.mkSwitch(sg.tiles[end + 1].pos), 0)
+		sg2.connect(sys, sys.mkSwitch(sg.tiles[end + 1].pos), 0)
 
-		sg.connect(sys.mkSwitch(sg.tiles[start - 1].pos), 1)
+		sg.connect(sys, sys.mkSwitch(sg.tiles[start - 1].pos), 1)
 		sg.tiles = slice(sg.tiles, 0, start - 1)
 	}
 }
@@ -290,11 +305,10 @@ fn (sys: ^System) canPlace*(tiles: []Tile): bool {
 	v := tiles[1].pos.sub(tiles[0].pos)
 	left := v.rotated(th.Vf2{}, -90)
 	right := v.rotated(th.Vf2{}, 90)
-	v = v.div(th.Vf2{2, 2})
 	for i, t in tiles {
 		// if there is an adjacent rail somewhere else than the start and en
-		lt := sys.at(t.pos.add(left).add(v))^
-		rt := sys.at(t.pos.add(right).add(v))^
+		lt := sys.at(t.pos.add(left))^
+		rt := sys.at(t.pos.add(right))^
 		if (lt != null && round(fabs(lt.rotation - t.rotation)) % 180 == 0) ||
 			(rt != null && round(fabs(rt.rotation - t.rotation)) % 180 == 0) {
 			return false
@@ -314,20 +328,98 @@ fn (sys: ^System) canPlace*(tiles: []Tile): bool {
 	return true
 }
 
+fn (sw: ^Segment) angle(end: int): int {
+	last := sw.tiles[ (len(sw.tiles) - 2) * end ]
+	return round(util.snap(last.pos.angleTo(sw.swis[end].pos), 45))
+}
+
+fn (sw: ^Switch) areAdjacent(si1, si2: int): bool {
+	sg1 := sw.segs[si1]
+	sg2 := sw.segs[si2]
+
+	a1 := sg1.angle(sw.ends[si1])
+	a2 := sg2.angle(sw.ends[si2]) - 180
+	for a2 < 0 { a2 += 360 }
+
+	diff := fabs(fabs(a1) - fabs(a2))
+	return diff <= 45 || diff >= 315
+}
+
+fn (sw: ^Switch) canMerge*(): bool {
+	if len(sw.segs) != 2 {
+		return false
+	}
+
+	return sw.areAdjacent(0, 1)
+}
+
+fn revTiles(tiles: []Tile): []Tile {
+	for i:=0; i < len(tiles) / 2; i++ {
+		tmp := tiles[i]
+		i2 := len(tiles) - 1 - i
+		tiles[i] = tiles[i2]
+		tiles[i2] = tmp
+	}
+
+	return tiles
+}
+
+fn (sw: ^Switch) merge*(sys: ^System): ^Segment {
+	if !sw.canMerge() {
+		return null
+	}
+
+	sg1 := sw.segs[0]
+	sg2 := sw.segs[1]
+
+	swt := Tile{sg1, len(sg1.tiles), sg2.tiles[0].rotation, sw.pos}
+
+	if sw.ends[0] == 0 {
+		if sw.ends[1] == 0 {
+			sg2.tiles = revTiles(sg2.tiles)
+		}
+		tiles := append(sg2.tiles, swt)
+		tiles = append(tiles, sg1.tiles)
+		sg1.tiles = tiles
+	} else {
+		tiles := append(sg1.tiles, swt)
+		if sw.ends[1] == 1 {
+			sg2.tiles = revTiles(sg2.tiles)
+		}
+		sg1.tiles = append(tiles, sg2.tiles)
+	}
+
+	sg1.connect(sys, sg2.swis[~sw.ends[1] & 1], sw.ends[0])
+
+	sg1.rebuildTiles(sys)
+
+	sg2.rm(sys)
+
+	return sg1
+}
+
 fn (sys: ^System) draw(cam: rect.Rect) {
 	const cellSize = 2
 	
 	canvas.setColor(th.black)
+	c := global.cam
+	c.x /= cellSize
+	c.y /= cellSize
+	c.w /= cellSize
+	c.h /= cellSize
+
 	for sg in sys.segs {
 		for t in sg.tiles {
+			p := c.toScreen(t.pos)
 			canvas.drawRect(rect.mk(
-				t.pos.x * cellSize, t.pos.y * cellSize, cellSize, cellSize))
+				p.x * cellSize, p.y * cellSize, cellSize, cellSize))
 		}
 	}
 
 	canvas.setColor(th.red)
 	for sw in sys.swis {
+		p := c.toScreen(sw.pos)
 		canvas.drawRect(rect.mk(
-			sw.pos.x * cellSize, sw.pos.y * cellSize, cellSize, cellSize))
+			p.x * cellSize, p.y * cellSize, cellSize, cellSize))
 	}
 }

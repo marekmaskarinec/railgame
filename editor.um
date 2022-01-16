@@ -7,11 +7,16 @@ import (
 	"canvas.um"
 
 	"rail.um"
+	"global.um"
 )
 
 const (
 	edOff = 0
 	edPlace
+	edMerge
+	edDel
+
+	modeNames = [4]str{"off", "place", "merge", "delete"}
 )
 
 var (
@@ -36,12 +41,21 @@ fn init*(s: rail.System) {
 }
 
 fn genPlaceTiles(p2: th.Vf2): []rail.Tile {
-	n := p2.sub(origin).norm()
-	tiles := make([]rail.Tile, round(origin.distanceTo(p2) / n.mag()) + 1)
 	p := origin
+	if p.x < p2.x || p.y < p2.y {
+		tmp := p
+		p = p2
+		p2 = tmp
+	}
+
+	n := p2.sub(p).norm()
+	tiles := make([]rail.Tile, round(p.distanceTo(p2) / n.mag()) + 1)
+
+	a := round(p.angleTo(p2)) % 360
+
 	for i, t in tiles {
 		tiles[i].pos = p
-		tiles[i].rotation = angle
+		tiles[i].rotation = a
 		p = p.add(n)
 	}
 
@@ -58,17 +72,27 @@ fn snap*(v, s: th.fu): th.fu {
 }
 
 fn handle*(cam: rect.Rect) {
+	if input.isJustPressed('p') {
+		mode = edPlace
+	} else if input.isJustPressed('m') {
+		mode = edMerge
+	} else if input.isJustPressed('d') {
+		mode = edDel
+	}
+
 	switch mode {
 	case edPlace:
-		mp := rail.worldToSys(input.getMousePos()).flr()
+		mp := rail.worldToSys(input.getGlobalMousePos(global.cam)).flr()
 
 		if hasOrigin {
-			p2 := th.Vf2{ 0, -origin.distanceTo(mp) }.rotated(th.Vf2{0, 0}, angle + 90).add(origin).rnd()
+			p2 := th.Vf2{ 0, -origin.distanceTo(mp) }.
+				rotated(th.Vf2{0, 0}, angle + 90).
+				add(origin).
+				rnd()
 			canPlace := false
 
 			if origin.x != p2.x || origin.y != p2.y {
 				angle = snap(mp.angleTo(origin), 45)
-				printf("%f\n", angle)
 				canPlace = sys.canPlace(genPlaceTiles(p2))
 
 				if !input.isPressed(input.mouse1) {
@@ -81,18 +105,36 @@ fn handle*(cam: rect.Rect) {
 				hasOrigin = false
 			}
 
-      camOff := th.Vf2{cam.w / 2, cam.h / 2}
-
 			color := th.cyan
-			if !canPlace {
-				color = th.red
-			}
-			canvas.drawLine(rail.sysToWorld(origin).add(th.Vf2{1, 1}), rail.sysToWorld(p2).add(th.Vf2{1, 1}), 2, color)
+			if !canPlace { color = th.red }
+
+			canvas.drawLine(
+				global.cam.toScreen(rail.sysToWorld(origin).add(th.Vf2{1, 1})),
+				global.cam.toScreen(rail.sysToWorld(p2).add(th.Vf2{1, 1})),
+				2, color)
 		} else {
 			if input.isJustPressed(input.mouse1) {
 				hasOrigin = true
 				origin = mp
 			}
 		}
+	case edMerge:
+		mp := rail.worldToSys(input.getGlobalMousePos(global.cam)).flr()
+		if input.isJustPressed(input.mouse1) {
+			sw := sys.atSwis(mp)^
+			if sw != null {
+				sw.merge(&sys)
+			}
+		}
+	case edDel:
+		mp := rail.worldToSys(input.getGlobalMousePos(global.cam)).flr()
+		if input.isJustPressed(input.mouse1) {
+			tl := sys.at(mp)^
+			if tl != null {
+				tl.parent.reduce(&sys, 0, len(tl.parent.tiles))
+			}
+		}
 	}
+
+	canvas.drawText(modeNames[mode], th.Vf2{2, 2}, th.black, 2)
 }

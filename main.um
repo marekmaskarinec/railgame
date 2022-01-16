@@ -2,6 +2,7 @@
 import (
 	"th.um"
 	"rect.um"
+	"input.um"
 	"canvas.um"
 	"window.um"
 
@@ -13,7 +14,7 @@ import (
 fn main() {
 	window.setup("title", 1280, 720)
 
-	global.cam = rect.mk(0, 0, 192, 108)
+	global.cam = rect.mk(96, 54, 192, 108)
 
 	sys := rail.System{}
 	sys.initSize(100, 100)
@@ -22,7 +23,16 @@ fn main() {
 	editor.init(sys)
 	for window.cycle(global.cam) {
 		canvas.setColor(th.white)
-		canvas.drawRect(global.cam)
+		canvas.drawRect(rect.Rect{0, 0, global.cam.w, global.cam.h})
+
+		if input.isJustPressed(input.key_left) {
+			global.cam.x -= 10
+			printf("%s\n", repr(global.cam))
+		}
+		if input.isJustPressed(input.key_right) {
+			global.cam.x += 10
+			printf("%s\n", repr(global.cam))
+		}
 
 		editor.sys.draw(global.cam)
 		editor.handle(global.cam)
