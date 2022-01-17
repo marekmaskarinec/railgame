@@ -15,8 +15,9 @@ const (
 	edPlace
 	edMerge
 	edDel
+	edDebug
 
-	modeNames = [4]str{"off", "place", "merge", "delete"}
+	modeNames = [5]str{"off", "place", "merge", "delete", "debug"}
 )
 
 var (
@@ -27,6 +28,8 @@ var (
 	origin: th.Vf2
 	hasOrigin: bool
 	angle: th.fu
+
+	np: th.Vf2
 )
 
 fn reset*() {
@@ -78,6 +81,8 @@ fn handle*(cam: rect.Rect) {
 		mode = edMerge
 	} else if input.isJustPressed('d') {
 		mode = edDel
+	} else if input.isJustPressed('g') {
+		mode = edDebug
 	}
 
 	switch mode {
@@ -132,6 +137,18 @@ fn handle*(cam: rect.Rect) {
 			tl := sys.at(mp)^
 			if tl != null {
 				tl.parent.reduce(&sys, 0, len(tl.parent.tiles))
+			}
+		}
+	case edDebug:
+		mp := rail.worldToSys(input.getGlobalMousePos(global.cam)).flr()
+
+		if input.isJustPressed(input.mouse1) && sys.atSwis(mp)^ != null {
+			if  np.x == 0 && np.y == 0 {
+				np = mp
+			} else {
+				sw1 := sys.atSwis(np)^
+				sw2 := sys.atSwis(mp)^
+				printf("%s\n", repr(sys.navigate(sw1, sw2)))
 			}
 		}
 	}

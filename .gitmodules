@@ -1,3 +1,6 @@
 [submodule "libs"]
 	path = libs
 	url = https://github.com/marekmaskarinec/libs
+[submodule "umka-lang"]
+	path = umka-lang
+	url = https://github.com/vtereshkov/umka-lang

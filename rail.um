@@ -3,6 +3,8 @@ import (
 	"th.um"
 	"rect.um"
 	"canvas.um"
+	"libs/list.um"
+	"umka-lang/import/map.um"
 
 	"util.um"
 	"global.um"
@@ -23,6 +25,7 @@ type (
 		// which end of respective segment is part of the switch
 		ends: []int
 		pos: th.Vf2
+		id: int
 	}
 
 	Segment* = struct {
@@ -36,6 +39,7 @@ type System* = struct {
 	tiles: [][]^Tile
 	swis: []^Switch
 	segs: []^Segment
+	swid: int
 }
 
 // still hardcoded. todo
@@ -140,6 +144,8 @@ fn (sg: ^Segment) rm(sys: ^System) {
 fn (sys: ^System) mkSwitch(pos: th.Vf2): ^Switch {
 	sys.swis = append(sys.swis, new(Switch))
 	sw := sys.swis[len(sys.swis) - 1]
+	sw.id = sys.swid
+	sys.swid++
 	sw.segs = []^Segment{}
 	sw.ends = []int{}
 	sw.pos = pos
@@ -159,6 +165,13 @@ fn (sg: ^Segment) rebuildTiles(sys: ^System) {
 		sg.tiles[i].parent = sg
 		sys.at(sg.tiles[i].pos)^ = &sg.tiles[i]
 	}
+}
+
+fn (sg: ^Segment) oppositeSw(sw: ^Switch): ^Switch {
+	if sw == sg.swis[0] {
+		return sg.swis[1]
+	}
+	return sg.swis[0]
 }
 
 // replaces `tile` by a switch connecting both sides of the segment and returns
@@ -301,6 +314,10 @@ fn (sg: ^Segment) reduce*(sys: ^System, start, end: int) {
 }
 
 fn (sys: ^System) canPlace*(tiles: []Tile): bool {
+	if len(tiles) <= 2 {
+		return false
+	}
+
 	var sg: ^Segment
 	v := tiles[1].pos.sub(tiles[0].pos)
 	left := v.rotated(th.Vf2{}, -90)
@@ -350,6 +367,10 @@ fn (sw: ^Switch) canMerge*(): bool {
 		return false
 	}
 
+	if sw.segs[0] == sw.segs[1] {
+		return false
+	}
+
 	return sw.areAdjacent(0, 1)
 }
 
@@ -396,6 +417,76 @@ fn (sw: ^Switch) merge*(sys: ^System): ^Segment {
 	sg2.rm(sys)
 
 	return sg1
+}
+
+fn (sys: ^System) navDist*(from, to: ^Switch): th.fu {
+	return from.pos.distanceTo(to.pos)
+}
+
+fn (sys: ^System) navigate*(from, to: ^Switch): []^Segment {
+	q := list.List{}
+	q.push_front(from)
+
+	cameFrom := map.Map{}
+	cost := map.Map{}
+	cost.set(from.id, 0)
+	hcost := map.Map{}
+	hcost.set(from.id, sys.navDist(from, to))
+	printf("set %d\n", from.id)
+
+
+	for q.length != 0 {
+		c := ^Switch(q.front.value)
+		q.remove(q.front)
+		if c == to {
+			out := []^Segment{}
+			for c != from {
+				sg := ^Segment(cameFrom.get(c.id))
+				out = append([]^Segment{ sg }, out)
+				c := sg.oppositeSw(c)
+			}
+			return out
+		}
+
+		for i,sg in c.segs {
+			score := int(cost.get(c.id)) + len(sg.tiles)
+			sw := sg.oppositeSw(c)
+			if ^Switch(cost.get(sw.id)) != null && int(cost.get(sw.id)) < score {
+				continue
+			}
+
+			cameFrom.set(sw.id, sg)
+			cost.set(sw.id, score)
+			hscore := score + sys.navDist(sw, to)
+			hcost.set(sw.id, hscore)
+	printf("set %d\n", from.id)
+			set := false
+			for n:=q.front; n != null; n=n.next {
+				s := ^Switch(n.value)
+				if ^Switch(n.value) == sw {
+					if !set { 
+						set = true				
+						break
+					}
+					t := n
+					n = n.next
+					q.remove(t)
+				}
+
+				printf("%s\n", repr(s.id))
+				if !set && real(hcost.get( s.id )) < hscore {
+					q.insert_after(n, sw)
+					n = n.next
+					set = true
+				}
+			}
+			if !set {
+				q.push_front(sw)
+			}
+		}
+	}
+
+	return []^Segment{}
 }
 
 fn (sys: ^System) draw(cam: rect.Rect) {
