@@ -148,7 +148,7 @@ fn handle*(cam: rect.Rect) {
 			} else {
 				sw1 := sys.atSwis(np)^
 				sw2 := sys.atSwis(mp)^
-				printf("%s\n", repr(sys.navigate(sw1, sw2)))
+				rail.path = sys.navigate(sw1, sw2)
 			}
 		}
 	}
