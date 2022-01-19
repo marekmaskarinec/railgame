@@ -2,56 +2,142 @@ rail.um
 ________________________________________________________________________________
 
 
-type Tile* = struct {
-	parent: int
-	index: int
-	rotation: int
-	pos: th.Vf2
-}
-
-
-
-________________________________________________________________________________
-
-
-type Switch* = struct {
-	segs: []int
-	// which end of respective segment is part of the switch
-	ends: []int
-	pos: th.Vf2
-}
-
-
-Switch is multiple segments ending in one place. Even signal is a switch,
-but with only two segments.
-
-________________________________________________________________________________
-
-
-type Segment* = struct {
-	swis: [2]int
-	tiles: []Tile
-	index: int
-}
-
-
-
-________________________________________________________________________________
-
-
 type System* = struct {
+	// map of what switch is on said position
+	swisMap: [][]^Switch
+	// map of what tile is on said position
 	tiles: [][]^Tile
-	swis: []Switch
-	segs: []Segment
+	// list of switches
+	swis: []^Switch
+	// list of segments
+	segs: []^Segment
+
+	// switch id counter
+	swid: int
 }
 
 
+
+________________________________________________________________________________
+
+
+type Agent* = struct {
+	length: int
+	
+	// max speed in tiles per ms
+	maxSpeed: th.fu
+	// current speed in tiles per ms
+	speed: th.fu
+	// acceleration per ms
+	accel: th.fu
+	// braking per ms
+	braking: th.fu
+
+	// in which segment the tail is
+	tail: ^Segment
+	// index on which tile the tail is
+	taili: int
+}
+
+
+A subset of train used in simulation
+
+________________________________________________________________________________
+
+
+fn worldToSys*(p: th.Vf2): th.Vf2
+
+still hardcoded. todo
+
+________________________________________________________________________________
+
+
+fn sysToWorld*(p: th.Vf2): th.Vf2
+
+
+________________________________________________________________________________
+
+
+fn (sys: ^System) at*(p: th.Vf2): ^^Tile
+
+returns a pointer to position in tile map
+
+________________________________________________________________________________
+
+
+fn (sys: ^System) atSwis(p: th.Vf2): ^^Switch
+
+return a pointer to position in switch map
 
 ________________________________________________________________________________
 
 
 fn (s: ^System) reset*()
 
+resets the system
+
+________________________________________________________________________________
+
+
+fn (sys: ^System) initSize(x, y: int)
+
+initializes the system with given size
+
+________________________________________________________________________________
+
+
+fn (sw: ^Switch) rm(sys: ^System)
+
+removes a switch
+
+________________________________________________________________________________
+
+
+fn (sg: ^Segment) disconnect*(sys: ^System, sw: ^Switch)
+
+disconnets segment from a switch. removes switch if needed
+
+________________________________________________________________________________
+
+
+fn (s: ^Segment) connect*(sys: ^System, sw: ^Switch, side: int)
+
+connects segment to a switch
+
+________________________________________________________________________________
+
+
+fn (sg: ^Segment) rm(sys: ^System)
+
+removes a segment
+
+________________________________________________________________________________
+
+
+fn (sys: ^System) mkSwitch(pos: th.Vf2): ^Switch
+
+creates a switch
+
+________________________________________________________________________________
+
+
+fn (sys: ^System) mkSegment(): ^Segment
+
+creates a segment
+
+________________________________________________________________________________
+
+
+fn (sg: ^Segment) rebuildTiles(sys: ^System)
+
+rebuilds segments's tiles in the tile map
+
+________________________________________________________________________________
+
+
+fn (sg: ^Segment) oppositeSw(sw: ^Switch): ^Switch
+
+returns pointer to the switch on opposite side of sg
 
 ________________________________________________________________________________
 
@@ -64,10 +150,80 @@ the new switch or null. if tile is the start or end, it doesn't replace it
 ________________________________________________________________________________
 
 
-fn (s: ^System)	placeTiles*(tiles: []Tile)
+fn (sys: ^System)	placeTiles*(tiles: []Tile)
 
 places tiles onto map. automatically creates segments and connects them
 to a switch if the tiles pass through it.
+
+________________________________________________________________________________
+
+
+fn (sg: ^Segment) reduce*(sys: ^System, start, end: int)
+
+reduces rails between start and end inclusive
+
+________________________________________________________________________________
+
+
+fn (sys: ^System) canPlace*(tiles: []Tile): bool
+
+checks whether a list of tiles can be placed into the system
+
+________________________________________________________________________________
+
+
+fn (sw: ^Segment) angle(end: int): int
+
+returns angle between a segment and a switch
+
+________________________________________________________________________________
+
+
+fn (sw: ^Switch) areAdjacent(si1, si2: int): bool
+
+checks whether train can go between two segments on a switch
+
+________________________________________________________________________________
+
+
+fn (sw: ^Switch) canMerge*(): bool
+
+checks whether a switch can be merged
+
+________________________________________________________________________________
+
+
+fn revTiles(tiles: []Tile): []Tile
+
+reverses an array of tiles
+
+________________________________________________________________________________
+
+
+fn (sw: ^Switch) merge*(sys: ^System): ^Segment
+
+merges a switch if possible
+
+________________________________________________________________________________
+
+
+fn (sys: ^System) navDist*(from, to: ^Switch): th.fu
+
+heuristic function for distance used in navigation
+
+________________________________________________________________________________
+
+
+fn (sys: ^System) navigate*(from, to: ^Switch): []^Segment
+
+navigates between two switches
+
+________________________________________________________________________________
+
+
+fn (sys: ^System) draw(cam: rect.Rect)
+
+draws the system
 
 ________________________________________________________________________________
 

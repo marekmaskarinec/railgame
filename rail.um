@@ -14,6 +14,8 @@ type (
 	Tile* = struct {
 		parent: ^Segment
 		index: int
+		// rotation isn't consistent. It can be used to rotate textures, but not to
+		// get the rails angle.
 		rotation: th.fu
 		pos: th.Vf2
 	}
@@ -28,19 +30,59 @@ type (
 		id: int
 	}
 
+	// an edge between two switches
 	Segment* = struct {
+		// switches on both ends of the segment. shouldn't be null
 		swis: [2]^Switch
+		// segment's tiles
 		tiles: []Tile
+
+		occ: ^Agent
+	}
+
+	// A subset of train used in simulation
+	Agent* = struct {
+		length: int
+
+		// max speed in tiles per ms
+		maxSpeed: th.fu
+		// current speed in tiles per ms
+		speed: th.fu
+		// acceleration per ms
+		accel: th.fu
+		// braking per ms
+		braking: th.fu
+
+		// path the agent goes through. nulls are switches
+		path: []^Tile
+
+		// index on which the trains tail is
+		tail: th.fu
+
+		// agent state
+		state: int
 	}
 )
 
 type System* = struct {
+	// map of what switch is on said position
 	swisMap: [][]^Switch
+	// map of what tile is on said position
 	tiles: [][]^Tile
+	// list of switches
 	swis: []^Switch
+	// list of segments
 	segs: []^Segment
+
+	// switch id counter
 	swid: int
 }
+
+const (
+	agIdle = 0
+	agAccel
+	agBrake
+)
 
 var (
 	path*: []^Segment								
@@ -55,14 +97,17 @@ fn sysToWorld*(p: th.Vf2): th.Vf2 {
 	return p.mul(th.Vf2{2, 2})
 }
 
+// returns a pointer to position in tile map
 fn (sys: ^System) at*(p: th.Vf2): ^^Tile {
 	return &sys.tiles[trunc(p.x)][trunc(p.y)]
 }
 
+// return a pointer to position in switch map
 fn (sys: ^System) atSwis(p: th.Vf2): ^^Switch {
 	return &sys.swisMap[trunc(p.x)][trunc(p.y)]
 }
 
+// resets the system
 fn (s: ^System) reset*() {
 	for i, l in s.tiles {
 		for j, _ in l {
@@ -80,6 +125,7 @@ fn (s: ^System) reset*() {
 	s.segs = []^Segment{}
 }
 
+// initializes the system with given size
 fn (sys: ^System) initSize(x, y: int) {
 	sys.tiles = make([][]^Tile, x)
 	for i, c in sys.tiles {
@@ -92,6 +138,7 @@ fn (sys: ^System) initSize(x, y: int) {
 	}
 }
 
+// removes a switch
 fn (sw: ^Switch) rm(sys: ^System) {
 	if len(sw.segs) != 0 {
 		return
@@ -105,6 +152,7 @@ fn (sw: ^Switch) rm(sys: ^System) {
 	}
 }
 
+// disconnets segment from a switch. removes switch if needed
 fn (sg: ^Segment) disconnect*(sys: ^System, sw: ^Switch) {
 	index := -1
 	for i, s in sw.segs {
@@ -124,6 +172,7 @@ fn (sg: ^Segment) disconnect*(sys: ^System, sw: ^Switch) {
 	}
 }
 
+// connects segment to a switch
 fn (s: ^Segment) connect*(sys: ^System, sw: ^Switch, side: int) {
 	if s.swis[side] != null {
 		s.disconnect(sys, s.swis[side])
@@ -134,6 +183,7 @@ fn (s: ^Segment) connect*(sys: ^System, sw: ^Switch, side: int) {
 	sw.ends = append(sw.ends, side)
 }
 
+// removes a segment
 fn (sg: ^Segment) rm(sys: ^System) {
 	sg.disconnect(sys, sg.swis[0])
 	sg.disconnect(sys, sg.swis[1])
@@ -145,6 +195,7 @@ fn (sg: ^Segment) rm(sys: ^System) {
 	}
 }
 
+// creates a switch
 fn (sys: ^System) mkSwitch(pos: th.Vf2): ^Switch {
 	sys.swis = append(sys.swis, new(Switch))
 	sw := sys.swis[len(sys.swis) - 1]
@@ -157,12 +208,14 @@ fn (sys: ^System) mkSwitch(pos: th.Vf2): ^Switch {
 	return sw
 }
 
+// creates a segment
 fn (sys: ^System) mkSegment(): ^Segment {
 	sys.segs = append(sys.segs, new(Segment))
 	sg := sys.segs[len(sys.segs)- 1]
 	return sg
 }
 
+// rebuilds segments's tiles in the tile map
 fn (sg: ^Segment) rebuildTiles(sys: ^System) {
 	for i, t in sg.tiles {
 		sg.tiles[i].index = i
@@ -171,6 +224,7 @@ fn (sg: ^Segment) rebuildTiles(sys: ^System) {
 	}
 }
 
+// returns pointer to the switch on opposite side of sg
 fn (sg: ^Segment) oppositeSw(sw: ^Switch): ^Switch {
 	if sw == sg.swis[0] {
 		return sg.swis[1]
@@ -317,6 +371,7 @@ fn (sg: ^Segment) reduce*(sys: ^System, start, end: int) {
 	}
 }
 
+// checks whether a list of tiles can be placed into the system
 fn (sys: ^System) canPlace*(tiles: []Tile): bool {
 	if len(tiles) <= 2 {
 		return false
@@ -349,23 +404,26 @@ fn (sys: ^System) canPlace*(tiles: []Tile): bool {
 	return true
 }
 
-fn (sw: ^Segment) angle(end: int): int {
-	last := sw.tiles[ (len(sw.tiles) - 2) * end ]
-	return round(util.snap(last.pos.angleTo(sw.swis[end].pos), 45))
+// returns angle between a segment and a switch
+fn (sg: ^Segment) angle(sw: ^Switch): int {
+	last := sg.tiles[1]
+	if sw != sg.swis[0] {
+		last = sg.tiles[len(sg.tiles) - 2]
+	}
+	return round(util.snap(last.pos.angleTo(sw.pos), 45))
 }
 
-fn (sw: ^Switch) areAdjacent(si1, si2: int): bool {
-	sg1 := sw.segs[si1]
-	sg2 := sw.segs[si2]
-
-	a1 := sg1.angle(sw.ends[si1])
-	a2 := sg2.angle(sw.ends[si2]) - 180
+// checks whether two segmeent are adjacent
+fn (sw: ^Switch) areAdjacent(sg1, sg2: ^Segment): bool {
+	a1 := sg1.angle(sw)
+	a2 := sg2.angle(sw) - 180
 	for a2 < 0 { a2 += 360 }
 
 	diff := fabs(fabs(a1) - fabs(a2))
-	return diff <= 45 || diff >= 315
+	return diff <= 45 || diff >= 315 || diff == 180
 }
 
+// checks whether a switch can be merged
 fn (sw: ^Switch) canMerge*(): bool {
 	if len(sw.segs) != 2 {
 		return false
@@ -375,9 +433,10 @@ fn (sw: ^Switch) canMerge*(): bool {
 		return false
 	}
 
-	return sw.areAdjacent(0, 1)
+	return sw.areAdjacent(sw.segs[0], sw.segs[1])
 }
 
+// reverses an array of tiles
 fn revTiles(tiles: []Tile): []Tile {
 	for i:=0; i < len(tiles) / 2; i++ {
 		tmp := tiles[i]
@@ -389,6 +448,7 @@ fn revTiles(tiles: []Tile): []Tile {
 	return tiles
 }
 
+// merges a switch if possible
 fn (sw: ^Switch) merge*(sys: ^System): ^Segment {
 	if !sw.canMerge() {
 		return null
@@ -423,10 +483,12 @@ fn (sw: ^Switch) merge*(sys: ^System): ^Segment {
 	return sg1
 }
 
+// heuristic function for distance used in navigation
 fn (sys: ^System) navDist*(from, to: ^Switch): th.fu {
 	return from.pos.distanceTo(to.pos)
 }
 
+// navigates between two switches
 fn (sys: ^System) navigate*(from, to: ^Switch): []^Segment {
 	q := list.List{}
 	q.push_front(from)
@@ -440,7 +502,6 @@ fn (sys: ^System) navigate*(from, to: ^Switch): []^Segment {
 	for q.length != 0 {
 		c := ^Switch(q.front.value)
 		q.remove(q.front)
-		printf("%d\n", c.id)
 		if c == to {
 			out := []^Segment{}
 			for c != from {
@@ -454,6 +515,12 @@ fn (sys: ^System) navigate*(from, to: ^Switch): []^Segment {
 		for i,sg in c.segs {
 			score := int(cost.get(c.id)) + len(sg.tiles)
 			sw := sg.oppositeSw(c)
+
+			cf := ^Segment(cameFrom.get(c.id))
+			if cf != null && !c.areAdjacent(cf, sg) {
+				continue
+			}
+			
 			if ^int(cost.get(sw.id)) != null && int(cost.get(sw.id)) < score {
 				continue
 			}
@@ -484,7 +551,138 @@ fn (sys: ^System) navigate*(from, to: ^Switch): []^Segment {
 	return []^Segment{}
 }
 
-fn (sys: ^System) draw(cam: rect.Rect) {
+fn (ag: ^Agent) markSegs() {
+	b := round((ag.speed * ag.speed) / (2 * ag.braking) + ag.length)
+
+	if ag.state == agBrake {
+		ag.state = agIdle
+	} else {
+		ag.state = agAccel
+	}
+
+	for a:=0; b > 0; b-=1 {
+		if round(b + ag.tail) >= len(ag.path) {
+			ag.state = agBrake
+			break
+		}
+
+		if ag.path[round(b + ag.tail)] == null {
+			continue
+		}
+		p := ag.path[round(b + ag.tail)].parent
+		if p.occ != null && p.occ != ag {
+			ag.state = agBrake
+			break
+		}
+
+		p.occ = ag
+	}
+}
+
+fn (ag: ^Agent) move(delta: th.fu) {
+	ot := ag.tail
+	ag.tail += ag.speed * delta
+
+	// remove tail segs
+	for a:=0; round(ot) < round(ag.tail); ot+=1 {
+		if ag.path[round(ot)] == null {
+			continue
+		}
+		ag.path[round(ot)].parent.occ = null
+	}
+
+	ag.markSegs()
+}
+
+// only debug
+fn (ag: ^Agent) draw*() {
+	if len(ag.path) == 0 {
+		return
+	}
+
+	const cellSize = 2
+	canvas.setColor(th.black)
+	c := global.cam
+	c.x /= cellSize
+	c.y /= cellSize
+	c.w /= cellSize
+	c.h /= cellSize
+
+	canvas.drawText(
+		"Agent:" +
+		"\n  tail: " + repr(ag.tail) +
+		"\n  speed: " + repr(ag.speed) +
+		"\n  mode: " + repr(ag.state),
+		th.Vf2{0, 20}, th.black, 1)
+
+	canvas.setColor(th.green)
+	for i:=ag.tail; i < ag.tail + ag.length; i+=1 {
+		t := ag.path[round(i)]
+		if t == null {
+			continue
+		}
+
+		p := c.toScreen(t.pos)
+		canvas.drawRect(rect.mk(
+			p.x * cellSize, p.y * cellSize, cellSize, cellSize))
+	}
+}
+
+fn (ag: ^Agent) setPath*(sys: ^System, from, to: ^Switch) {
+	p := sys.navigate(from, to)
+	ag.path = []^Tile{}
+	for i,sg in p {
+		off := len(ag.path)
+		// +1 for the switch
+		ag.path = append(ag.path, make([]^Tile, len(sg.tiles) + 1))
+
+		rev := false
+		if i == 0 {
+			sg2 := p[i + 1]
+			if sg.swis[0] == sg2.swis[0] || sg.swis[0] == sg2.swis[1] {
+				rev = true
+			}
+		} else {
+			sg2 := p[i - 1]
+			if sg.swis[1] == sg2.swis[0] || sg.swis[1] == sg2.swis[1] {
+				rev = true
+			}
+		}
+
+		printf("%s\n", repr(rev))
+		for i,t in sg.tiles {
+			index := i
+			if rev {
+				index = len(sg.tiles) - 1 - i
+			}
+			ag.path[off + i] = &sg.tiles[index]
+		}
+	}
+
+	ag.tail = 0
+}
+
+fn (ag: ^Agent) update*(delta: th.fu) {
+	if len(ag.path) == 0 {
+		return
+	}
+
+	switch ag.state {
+	case agIdle:
+	case agAccel:
+		ag.speed += ag.accel * delta
+		if ag.speed > ag.maxSpeed {
+			ag.speed = ag.maxSpeed
+		}
+	case agBrake:
+		ag.speed -= ag.braking * delta
+	}
+
+	ag.move(delta)
+}
+
+// draws the system
+fn (sys: ^System) draw*(cam: rect.Rect) {
 	const cellSize = 2
 	
 	canvas.setColor(th.black)
@@ -493,6 +691,7 @@ fn (sys: ^System) draw(cam: rect.Rect) {
 	c.y /= cellSize
 	c.w /= cellSize
 	c.h /= cellSize
+
 
 	for sg in sys.segs {
 		for t in sg.tiles {

@@ -30,6 +30,8 @@ var (
 	angle: th.fu
 
 	np: th.Vf2
+
+	ag: rail.Agent
 )
 
 fn reset*() {
@@ -41,6 +43,13 @@ fn reset*() {
 fn init*(s: rail.System) {
 	reset()
 	sys = s
+
+	ag = rail.Agent{
+		length: 5,
+		maxSpeed: 5.0/1000,
+		accel: 0.5/1000,
+		braking: 0.2/1000}
+	printf("%s\n", repr(ag))
 }
 
 fn genPlaceTiles(p2: th.Vf2): []rail.Tile {
@@ -149,9 +158,13 @@ fn handle*(cam: rect.Rect) {
 				sw1 := sys.atSwis(np)^
 				sw2 := sys.atSwis(mp)^
 				rail.path = sys.navigate(sw1, sw2)
+				ag.setPath(&sys, sw1, sw2)
 			}
 		}
 	}
+
+	ag.update(th.delta)
+	ag.draw()
 
 	canvas.drawText(modeNames[mode], th.Vf2{2, 2}, th.black, 2)
 }
