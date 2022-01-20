@@ -552,7 +552,7 @@ fn (sys: ^System) navigate*(from, to: ^Switch): []^Segment {
 }
 
 fn (ag: ^Agent) markSegs() {
-	b := round((ag.speed * ag.speed) / (2 * ag.braking) + ag.length)
+	b := round(((ag.speed * ag.speed) / (2 * ag.braking) + ag.length) * 1.1)
 
 	if ag.state == agBrake {
 		ag.state = agIdle
@@ -560,16 +560,16 @@ fn (ag: ^Agent) markSegs() {
 		ag.state = agAccel
 	}
 
-	for a:=0; b > 0; b-=1 {
-		if round(b + ag.tail) >= len(ag.path) {
+	for off:=0; off < b; off++ {
+		if round(off + ag.tail) >= len(ag.path) {
 			ag.state = agBrake
 			break
 		}
 
-		if ag.path[round(b + ag.tail)] == null {
+		if ag.path[round(off + ag.tail)] == null {
 			continue
 		}
-		p := ag.path[round(b + ag.tail)].parent
+		p := ag.path[round(off + ag.tail)].parent
 		if p.occ != null && p.occ != ag {
 			ag.state = agBrake
 			break
@@ -584,7 +584,7 @@ fn (ag: ^Agent) move(delta: th.fu) {
 	ag.tail += ag.speed * delta
 
 	// remove tail segs
-	for a:=0; round(ot) < round(ag.tail); ot+=1 {
+	for a:=0; ot < ag.tail; ot+=1 {
 		if ag.path[round(ot)] == null {
 			continue
 		}
@@ -626,6 +626,19 @@ fn (ag: ^Agent) draw*() {
 		canvas.drawRect(rect.mk(
 			p.x * cellSize, p.y * cellSize, cellSize, cellSize))
 	}
+
+	canvas.setColor(th.magenta)
+	b := (ag.speed * ag.speed) / (2 * ag.braking)
+	for i:=ag.tail + ag.length; i < ag.tail + ag.length + b && round(i) < len(ag.path); i+=1 {
+		t := ag.path[round(i)]
+		if t == null {
+			continue
+		}
+
+		p := c.toScreen(t.pos)
+		canvas.drawRect(rect.mk(
+			p.x * cellSize, p.y * cellSize, cellSize, cellSize))
+	}
 }
 
 fn (ag: ^Agent) setPath*(sys: ^System, from, to: ^Switch) {
@@ -638,8 +651,7 @@ fn (ag: ^Agent) setPath*(sys: ^System, from, to: ^Switch) {
 
 		rev := false
 		if i == 0 {
-			sg2 := p[i + 1]
-			if sg.swis[0] == sg2.swis[0] || sg.swis[0] == sg2.swis[1] {
+			if sg.swis[1] == from {
 				rev = true
 			}
 		} else {
@@ -649,7 +661,6 @@ fn (ag: ^Agent) setPath*(sys: ^System, from, to: ^Switch) {
 			}
 		}
 
-		printf("%s\n", repr(rev))
 		for i,t in sg.tiles {
 			index := i
 			if rev {
@@ -676,6 +687,7 @@ fn (ag: ^Agent) update*(delta: th.fu) {
 		}
 	case agBrake:
 		ag.speed -= ag.braking * delta
+		ag.speed = util.maxf(ag.speed, 0)
 	}
 
 	ag.move(delta)
@@ -694,15 +706,12 @@ fn (sys: ^System) draw*(cam: rect.Rect) {
 
 
 	for sg in sys.segs {
-		for t in sg.tiles {
-			p := c.toScreen(t.pos)
-			canvas.drawRect(rect.mk(
-				p.x * cellSize, p.y * cellSize, cellSize, cellSize))
+		if sg.occ != null {
+			canvas.setColor(th.cyan)
+		} else {
+			canvas.setColor(th.black)
 		}
-	}
 
-	canvas.setColor(th.yellow)
-	for sg in path {
 		for t in sg.tiles {
 			p := c.toScreen(t.pos)
 			canvas.drawRect(rect.mk(
