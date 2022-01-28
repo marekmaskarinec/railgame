@@ -277,7 +277,7 @@ fn (s: ^Segment) splitAt*(sys: ^System, tile: int): ^Switch {
 fn (sys: ^System)	placeTiles*(tiles: []Tile) {
 	sg := sys.mkSegment()
 
-	sg.tiles = slice(tiles, 1)
+	sg.tiles = slice(tiles, 1, len(tiles))
 	if sw := sys.swisMap[round(tiles[0].pos.x)][round(tiles[0].pos.y)]; sw != null {
 		sg.connect(sys, sw, 0)
 	} else if isgt := sys.tiles[round(tiles[0].pos.x)][round(tiles[0].pos.y)]; isgt != null {
@@ -318,7 +318,7 @@ fn (sys: ^System)	placeTiles*(tiles: []Tile) {
 		}
 	}
 	
-	sg.tiles = slice(tiles, last)
+	sg.tiles = slice(tiles, last, len(tiles) - 1)
 	t := tiles[len(tiles) - 1]
 	if sw := sys.swisMap[round(t.pos.x)][round(t.pos.y)]; sw != null {
 		sg.connect(sys, sw, 1)
@@ -832,8 +832,8 @@ fn (sys: ^System) draw*(cam: rect.Rect) {
 
 	for sw in sys.swis {
 		p := c.toScreen(sw.pos)
-		canvas.drawRect(th.red, rect.mk(
+		canvas.drawRect(0xff44, rect.mk(
 			p.x * cellSize, p.y * cellSize, cellSize, cellSize))
-		canvas.drawText(repr(sw.id), th.Vf2{p.x * cellSize, p.y * cellSize}, th.cyan, 0.8)
+		//canvas.drawText(repr(sw.id), th.Vf2{p.x * cellSize, p.y * cellSize}, th.cyan, 0.8)
 	}
 }
