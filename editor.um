@@ -1,12 +1,14 @@
 
 import (
 	"th.um"
+	"std.um"
 	"rect.um"
 	"misc.um"
 	"input.um"
 	"canvas.um"
 
 	"rail.um"
+	"util.um"
 	"global.um"
 )
 
@@ -101,6 +103,14 @@ fn handle*(cam: rect.Rect) {
 		mode = edDebug
 	}
 
+	if input.isJustPressed('s') {
+		f := std.fopen("export.txt", "w")
+		fprintf(f, "%s\n", sys.export())
+		std.fclose(f)
+	} else if input.isJustPressed('l') {
+		sys = rail.load(util.readall("export.txt"))
+	}
+
 	switch mode {
 	case edPlace:
 		mp := rail.worldToSys(input.getGlobalMousePos(global.cam)).flr()
@@ -129,10 +139,10 @@ fn handle*(cam: rect.Rect) {
 			color := th.cyan
 			if !canPlace { color = th.red }
 
-			canvas.drawLine(
+			canvas.drawLine(color,
 				global.cam.toScreen(rail.sysToWorld(origin).add(th.Vf2{1, 1})),
 				global.cam.toScreen(rail.sysToWorld(p2).add(th.Vf2{1, 1})),
-				2, color)
+				2)
 		} else {
 			if input.isJustPressed(input.mouse1) {
 				hasOrigin = true

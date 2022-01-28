@@ -1,7 +1,23 @@
 
 import (
 	"th.um"
+	"std.um"
 )
+
+fn readall*(name: str): str {
+		f := std.fopen(name, "r")
+    const blockSize = 16
+    res := ""
+
+    for ok := true; ok {
+	    var buff: [blockSize + 1]char
+	    ok = std.fread(f, ^[blockSize]char(&buff)) == 1
+	    res += str([]char(buff))
+    }
+
+		std.fclose(f)
+    return res
+}
 
 fn maxf*(v1, v2: th.fu): th.fu {
 	if v1 > v2 { return v1 }

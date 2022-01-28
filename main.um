@@ -22,8 +22,7 @@ fn main() {
 
 	editor.init(sys)
 	for window.cycle(global.cam) {
-		canvas.setColor(th.white)
-		canvas.drawRect(rect.Rect{0, 0, global.cam.w, global.cam.h})
+		canvas.drawRect(th.white, rect.Rect{0, 0, global.cam.w, global.cam.h})
 
 		if input.isJustPressed(input.key_left) {
 			global.cam.x -= 10

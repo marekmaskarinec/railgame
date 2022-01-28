@@ -1,9 +1,11 @@
 
 import (
 	"th.um"
+	"std.um"
 	"rect.um"
 	"canvas.um"
 	"libs/list.um"
+	"libs/strings.um"
 	"umka-lang/import/map.um"
 
 	"util.um"
@@ -36,6 +38,7 @@ type (
 		swis: [2]^Switch
 		// segment's tiles
 		tiles: []Tile
+		id: int
 
 		occ: ^Agent
 	}
@@ -551,8 +554,121 @@ fn (sys: ^System) navigate*(from, to: ^Switch): []^Segment {
 	return []^Segment{}
 }
 
+fn (sys: ^System) export*(): str {
+	out := strings.mk_builder()
+	
+	for i,sw in sys.swis {
+		sys.swis[i].id = i
+	}
+
+	for i,sg in sys.segs {
+		sys.segs[i].id = i
+	}
+
+	out.write_str(repr(len(sys.tiles[0])) + repr(len(sys.tiles)) + "\n")
+	out.write_str(repr(len(sys.segs)) + repr(len(sys.swis)) + "\n")
+
+	out.write_str("# segments\n")
+	for sg in sys.segs {
+		out.write_str("sg ")
+		out.write_str(repr(sg.swis[0].id))
+		out.write_str(repr(sg.swis[1].id))
+		out.write_str(repr(len(sg.tiles)))
+
+		for t in sg.tiles {
+			out.write_str(repr(t.pos.x) + repr(t.pos.y) + repr(t.rotation))
+		}
+		out.write_str("\n")
+	}
+
+	out.write_str("# switches\n")
+	for sw in sys.swis {
+		out.write_str("sw ")
+		out.write_str(repr(sw.pos.x) + repr(sw.pos.y))
+		out.write_str(repr(len(sw.segs)))
+		for i,sg in sw.segs {
+			out.write_str(repr(sg.id) + repr(sw.ends[i]))
+		}
+		out.write_str("\n")
+	}
+
+	return out.to_str()
+}
+
+fn load*(src: str): System {
+	lines := strings.split(src, "\n")
+	sys := System{}
+
+	sp := strings.split(lines[0], " ")
+	sys.initSize(std.atoi(sp[0]), std.atoi(sp[1]))
+
+	sp = strings.split(lines[1], " ")
+	sys.segs = make([]^Segment, std.atoi(sp[0]))
+	sys.swis = make([]^Switch,  std.atoi(sp[1]))
+
+	for i,s in sys.segs {
+		sys.segs[i] = new(Segment)
+	}
+	for i,s in sys.swis {
+		sys.swis[i] = new(Switch)
+	}
+
+	sgi := 0
+	swi := 0
+
+	for i:=2; i < len(lines); i++ {
+		l := lines[i]
+		if len(l) == 0 || l[0] == '#' {
+			continue
+		}
+
+		sp := strings.split(l, " ")
+		if sp[0] == "sg" {
+			sg := Segment{}
+
+			sg.swis[0] = sys.swis[std.atoi(sp[1])]
+			sg.swis[1] = sys.swis[std.atoi(sp[2])]
+			sg.tiles = make([]Tile, std.atoi(sp[3]))
+			
+			for j,t in sg.tiles {
+				off := 4 + j * 3
+
+				sg.tiles[j].pos.x = std.atoi(sp[off])
+				sg.tiles[j].pos.y = std.atoi(sp[off + 1])
+				sg.tiles[j].rotation = std.atoi(sp[off + 2])
+			}
+
+			sg.id = sgi
+
+			sys.segs[sgi]^ = sg
+			sgi++
+		} else if sp[0] == "sw" {
+			sw := Switch{}
+
+			sw.pos.x = std.atoi(sp[1])
+			sw.pos.y = std.atoi(sp[2])
+
+			sw.segs = make([]^Segment, std.atoi(sp[3]))
+			sw.ends = make([]int, std.atoi(sp[3]))
+
+			for j,s in sw.segs {
+				off := 4 + j * 3
+				sw.segs[j] = sys.segs[std.atoi(sp[off])]
+				sw.ends[j] = std.atoi(sp[off + 1])
+			}
+
+			sw.id = swi
+
+			sys.swis[swi]^ = sw
+			swi++
+		}
+	}
+
+	return sys
+}
+
 fn (ag: ^Agent) markSegs() {
-	b := round(((ag.speed * ag.speed) / (2 * ag.braking) + ag.length) * 1.1)
+	b := round((ag.speed * ag.speed) / (2 * ag.braking) + ag.length) + 2
 
 	if ag.state == agBrake {
 		ag.state = agIdle
@@ -601,7 +717,6 @@ fn (ag: ^Agent) draw*() {
 	}
 
 	const cellSize = 2
-	canvas.setColor(th.black)
 	c := global.cam
 	c.x /= cellSize
 	c.y /= cellSize
@@ -615,20 +730,18 @@ fn (ag: ^Agent) draw*() {
 		"\n  mode: " + repr(ag.state),
 		th.Vf2{0, 20}, th.black, 1)
 
-	canvas.setColor(th.green)
-	for i:=ag.tail; i < ag.tail + ag.length; i+=1 {
+	for i:=ag.tail; i < ag.tail + ag.length && round(i) < len(ag.path); i+=1 {
 		t := ag.path[round(i)]
 		if t == null {
 			continue
 		}
 
 		p := c.toScreen(t.pos)
-		canvas.drawRect(rect.mk(
+		canvas.drawRect(th.green, rect.mk(
 			p.x * cellSize, p.y * cellSize, cellSize, cellSize))
 	}
 
-	canvas.setColor(th.magenta)
-	b := (ag.speed * ag.speed) / (2 * ag.braking)
+	b := (ag.speed * ag.speed) / (2 * ag.braking) + 2
 	for i:=ag.tail + ag.length; i < ag.tail + ag.length + b && round(i) < len(ag.path); i+=1 {
 		t := ag.path[round(i)]
 		if t == null {
@@ -636,7 +749,7 @@ fn (ag: ^Agent) draw*() {
 		}
 
 		p := c.toScreen(t.pos)
-		canvas.drawRect(rect.mk(
+		canvas.drawRect(th.magenta, rect.mk(
 			p.x * cellSize, p.y * cellSize, cellSize, cellSize))
 	}
 }
@@ -697,7 +810,6 @@ fn (ag: ^Agent) update*(delta: th.fu) {
 fn (sys: ^System) draw*(cam: rect.Rect) {
 	const cellSize = 2
 	
-	canvas.setColor(th.black)
 	c := global.cam
 	c.x /= cellSize
 	c.y /= cellSize
@@ -706,24 +818,21 @@ fn (sys: ^System) draw*(cam: rect.Rect) {
 
 
 	for sg in sys.segs {
+		col := th.black
 		if sg.occ != null {
-			canvas.setColor(th.cyan)
-		} else {
-			canvas.setColor(th.black)
+			col = th.cyan
 		}
 
 		for t in sg.tiles {
 			p := c.toScreen(t.pos)
-			canvas.drawRect(rect.mk(
+			canvas.drawRect(col, rect.mk(
 				p.x * cellSize, p.y * cellSize, cellSize, cellSize))
 		}
 	}
 
-	canvas.setColor(th.red)
 	for sw in sys.swis {
 		p := c.toScreen(sw.pos)
-		canvas.setColor(th.red)
-		canvas.drawRect(rect.mk(
+		canvas.drawRect(th.red, rect.mk(
 			p.x * cellSize, p.y * cellSize, cellSize, cellSize))
 		canvas.drawText(repr(sw.id), th.Vf2{p.x * cellSize, p.y * cellSize}, th.cyan, 0.8)
 	}

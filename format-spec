@@ -1,0 +1,11 @@
+# comments start with #
+# blank lines are ignored too
+
+width height
+number-of-segments number-of-switches
+
+# segment defs followed by its tiles
+sg end-1 end-2 tile-count x1 y1 rot1 x2 y2 rot2 ...
+
+# switch defs
+sw x y number-of-segs index1 end1 index2 end2
