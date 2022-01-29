@@ -19,7 +19,7 @@ const (
 	edDel
 	edDebug
 
-	modeNames = [5]str{"off", "place", "merge", "delete", "debug"}
+	modeNames = [5]str{"OFF", "PLACE", "MERGE", "DELETE", "DEBUG"}
 )
 
 var (
@@ -59,6 +59,30 @@ fn init*(s: rail.System) {
 		maxSpeed: 3.0/1000,
 		accel: 0.5/1000,
 		braking: 0.2/1000}
+}
+
+fn scanSwitches(p1, p2: th.Vf2): []^rail.Switch {
+	n := p2.sub(p1).norm()
+	pa := p1.angleTo(p2)
+	if pa == 360 { pa = 0 }
+
+	out := []^rail.Switch{}
+
+	for a:=-90.0; a <= 90; a+=45 {
+		p := p2
+		m := n.rotated(th.Vf2{}, a)
+
+		for i:=0; i < 10; i++ {
+			p = p.add(m)
+			canvas.drawLine(th.red, p2, p, 1)
+			if sys.atSwis(p)^ != null {
+				out = append(out, sys.atSwis(p)^)				
+				break
+			}
+		}
+	}
+
+	return out
 }
 
 fn genPlaceTiles(p2: th.Vf2): []rail.Tile {
@@ -113,6 +137,20 @@ fn handle*(cam: rect.Rect) {
 
 	switch mode {
 	case edPlace:
+		for x:=0.0; x < global.cam.w; x+=rail.tileSize {
+			if round(x / rail.tileSize) % 2 == 0 {
+				continue
+			}
+			canvas.drawRect(0x22, rect.mk(x, 0, rail.tileSize, global.cam.h))
+		}
+  
+		for y:=0.0; y < global.cam.h; y+=rail.tileSize {
+			if round(y / rail.tileSize) % 2 == 0 {
+				continue
+			}
+			canvas.drawRect(0x22, rect.mk(0, y, global.cam.w, rail.tileSize))
+		}
+
 		mp := rail.worldToSys(input.getGlobalMousePos(global.cam)).flr()
 
 		if hasOrigin {
@@ -136,13 +174,20 @@ fn handle*(cam: rect.Rect) {
 				hasOrigin = false
 			}
 
+			swis := scanSwitches(origin, p2)
+			for sw in swis {
+				canvas.drawLine(0x00ff0099,
+					rail.sysToWorld(p2).add(th.Vf2{1, 1}),
+					rail.sysToWorld(sw.pos).add(th.Vf2{1, 1}), 1)
+			}
+
 			color := th.cyan
 			if !canPlace { color = th.red }
 
 			canvas.drawLine(color,
 				global.cam.toScreen(rail.sysToWorld(origin).add(th.Vf2{1, 1})),
 				global.cam.toScreen(rail.sysToWorld(p2).add(th.Vf2{1, 1})),
-				2)
+				rail.tileSize)
 		} else {
 			if input.isJustPressed(input.mouse1) {
 				hasOrigin = true

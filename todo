@@ -1,0 +1,22 @@
+
+editor:
+	- connection visualizer
+	- elipse tool
+	- parallel tool
+	- zooming
+	- panning
+	- gui
+
+trains and agents:
+	- properly test agent behaviour
+	- add train struct and draw it
+		- individual carriages
+
+rail:
+	- placement rules
+		- switch limits:
+			- the maximum is 4, but it has to be a crossing
+			- if any of the segments has a 45 degree angle to another one,
+				only 3 are allowed
+		- properly check for diagonal neighboring segments
+

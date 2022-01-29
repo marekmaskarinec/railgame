@@ -89,6 +89,8 @@ const (
 
 var (
 	path*: []^Segment								
+
+	tileSize*: th.fu = 2
 )
 
 // still hardcoded. todo
