@@ -651,6 +651,7 @@ fn load*(src: str): System {
 			sg.id = sgi
 
 			sys.segs[sgi]^ = sg
+			sys.segs[sgi].rebuildTiles(&sys)
 			sgi++
 		} else if sp[0] == "sw" {
 			sw := Switch{}
@@ -670,9 +671,12 @@ fn load*(src: str): System {
 			sw.id = swi
 
 			sys.swis[swi]^ = sw
+			sys.atSwis(sw.pos)^ = sys.swis[swi]
 			swi++
 		}
 	}
+
+	sys.swid = swi
 
 	return sys
 }
