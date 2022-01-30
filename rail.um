@@ -104,11 +104,19 @@ fn sysToWorld*(p: th.Vf2): th.Vf2 {
 
 // returns a pointer to position in tile map
 fn (sys: ^System) at*(p: th.Vf2): ^^Tile {
+	if p.x < 0 || p.y < 0 || p.x > len(sys.tiles[0]) || p.y > len(sys.tiles) {
+		return null
+	}
+
 	return &sys.tiles[trunc(p.x)][trunc(p.y)]
 }
 
 // return a pointer to position in switch map
 fn (sys: ^System) atSwis(p: th.Vf2): ^^Switch {
+	if p.x < 0 || p.y < 0 || p.x >= len(sys.swisMap[0]) || p.y >= len(sys.swisMap) {
+		return null
+	}
+
 	return &sys.swisMap[trunc(p.x)][trunc(p.y)]
 }
 
@@ -654,7 +662,7 @@ fn load*(src: str): System {
 			sw.ends = make([]int, std.atoi(sp[3]))
 
 			for j,s in sw.segs {
-				off := 4 + j * 3
+				off := 4 + j * 2
 				sw.segs[j] = sys.segs[std.atoi(sp[off])]
 				sw.ends[j] = std.atoi(sp[off + 1])
 			}
@@ -818,6 +826,7 @@ fn (sys: ^System) draw*(cam: rect.Rect) {
 	c.w /= cellSize
 	c.h /= cellSize
 
+	scaler := th.Vf2{tileSize, tileSize}
 
 	for sg in sys.segs {
 		col := th.black
@@ -825,11 +834,33 @@ fn (sys: ^System) draw*(cam: rect.Rect) {
 			col = th.cyan
 		}
 
-		for t in sg.tiles {
+		s := sg.swis[0].pos.mul(scaler)
+		e := sg.swis[1].pos.mul(scaler)
+		d := e.sub(s)
+		mag := d.mag()
+		d.x /= mag
+		d.y /= mag
+		o := th.Vf2{ -d.y * tileSize * 0.5, d.x * tileSize * 0.5 }
+
+		s = s.add(th.Vf2{tileSize * 0.5, tileSize * 0.5})
+		e = e.add(th.Vf2{tileSize * 0.5, tileSize * 0.5})
+
+		off := d.norm().mul(th.Vf2{tileSize * 0.2, tileSize * 0.2})
+		s = s.sub(off)
+		e = e.add(off)
+
+		p1 := s.sub(o)
+		p2 := e.sub(o)
+		canvas.drawLine(col, p1, p2, 0.6)
+
+		p1 = s.add(o)
+		p2 = e.add(o)
+		canvas.drawLine(col, p1, p2, 0.6)
+		/*for t in sg.tiles {
 			p := c.toScreen(t.pos)
 			canvas.drawRect(col, rect.mk(
 				p.x * cellSize, p.y * cellSize, cellSize, cellSize))
-		}
+		}*/
 	}
 
 	for sw in sys.swis {

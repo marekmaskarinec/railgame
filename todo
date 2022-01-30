@@ -1,14 +1,14 @@
 
 editor:
-	- connection visualizer
+	- select, copy, cut, paste
 	- elipse tool
 	- parallel tool
 	- zooming
-	- panning
 	- gui
 
 trains and agents:
 	- properly test agent behaviour
+	- check for occupancy of switches
 	- add train struct and draw it
 		- individual carriages
 

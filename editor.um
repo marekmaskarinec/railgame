@@ -20,6 +20,8 @@ const (
 	edDebug
 
 	modeNames = [5]str{"OFF", "PLACE", "MERGE", "DELETE", "DEBUG"}
+
+	panSpeed = 0.05
 )
 
 var (
@@ -36,12 +38,16 @@ var (
 
 	ag: rail.Agent
 	ag2: rail.Agent
+
+	camPos: th.Vf2
 )
 
 fn reset*() {
 	mode = edPlace
 
 	hasOrigin = false
+
+	camPos = th.Vf2{global.cam.x, global.cam.y}
 }
 
 fn init*(s: rail.System) {
@@ -72,10 +78,9 @@ fn scanSwitches(p1, p2: th.Vf2): []^rail.Switch {
 		p := p2
 		m := n.rotated(th.Vf2{}, a)
 
-		for i:=0; i < 10; i++ {
+		for i:=0; i < 40; i++ {
 			p = p.add(m)
-			canvas.drawLine(th.red, p2, p, 1)
-			if sys.atSwis(p)^ != null {
+			if sw := sys.atSwis(p); sw != null && sw^ != null {
 				out = append(out, sys.atSwis(p)^)				
 				break
 			}
@@ -134,6 +139,21 @@ fn handle*(cam: rect.Rect) {
 	} else if input.isJustPressed('l') {
 		sys = rail.load(util.readall("export.txt"))
 	}
+
+	if input.isPressed(input.key_left) {
+		camPos.x -= panSpeed * th.delta
+	}
+	if input.isPressed(input.key_right) {
+		camPos.x += panSpeed * th.delta
+	}
+	global.cam.x = util.snap(camPos.x, rail.tileSize)
+	if input.isPressed(input.key_up) {
+		camPos.y -= panSpeed * th.delta
+	}
+	if input.isPressed(input.key_down) {
+		camPos.y += panSpeed * th.delta
+	}
+	global.cam.y = util.snap(camPos.y, rail.tileSize)
 
 	switch mode {
 	case edPlace:
