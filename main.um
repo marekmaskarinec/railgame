@@ -22,7 +22,7 @@ fn main() {
 
 	editor.init(sys)
 	for window.cycle(global.cam) {
-		canvas.drawRect(th.white, rect.Rect{0, 0, global.cam.w, global.cam.h})
+		canvas.drawRect(0x604a99ff, rect.Rect{0, 0, global.cam.w, global.cam.h})
 
 		editor.sys.draw(global.cam)
 		editor.handle(global.cam)

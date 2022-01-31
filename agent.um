@@ -13,14 +13,15 @@ type PathFragment* = struct {
 	pos: ^th.Vf2
 	color: ^uint32
 	occ: ^int
+	isSwitch: bool
 }
 
 type Agent* = struct {
 	length: int
 
-	// max speed in tiles per ms
+	// max speed in coords per ms
 	maxSpeed: th.fu
-	// current speed in tiles per ms
+	// current speed in coords per ms
 	speed: th.fu
 	// acceleration per ms
 	accel: th.fu
@@ -58,6 +59,29 @@ fn (ag: ^Agent) getBraking(): th.iu {
 	return round((ag.speed * ag.speed) / (2 * ag.braking) + ag.length) + 2
 }
 
+fn (ag: ^Agent) coordsAt(index: th.fu): th.Vf2 {
+	if trunc(index) == index || trunc(index) + 1 >= len(ag.path) {
+		return ag.path[trunc(index)].pos^
+	}
+
+	p1 := ag.path[trunc(index)].pos^
+	p2 := ag.path[trunc(index) + 1].pos^
+
+	d := p2.sub(p1)
+	m := index - trunc(index)
+	return p1.add(d.mul(th.Vf2{m, m}))
+}
+
+fn (ag: ^Agent) sizeOf(index: th.fu): th.fu {
+	i := trunc(index)
+	if i + 1 >= len(ag.path) {
+		return 0
+	}
+
+	return ag.path[i].pos.distanceTo(ag.path[i + 1].pos^)
+}
+
+
 fn (ag: ^Agent) markSegs() {
 	b := ag.getBraking()
 
@@ -75,7 +99,9 @@ fn (ag: ^Agent) markSegs() {
 
 		p := ag.path[round(off + ag.tail)]
 		if p.occ^ != 0 && p.occ^ != ag.id {
-			ag.state = agBrake
+			if !p.isSwitch || b < ag.length {
+				ag.state = agBrake
+			}
 			break
 		}
 
@@ -85,7 +111,13 @@ fn (ag: ^Agent) markSegs() {
 
 fn (ag: ^Agent) move(delta: th.fu) {
 	ot := trunc(ag.tail)
-	ag.tail += ag.speed * delta
+	sz := 0.0
+	for i:=0; i < ag.length; i++ {
+		sz += ag.sizeOf(ag.tail + i)
+	}
+	sz /= ag.length
+
+	ag.tail += ag.speed*delta / sz
 
 	swi := 0
 	for a:=0.0; ot < ag.tail; ot++ {
@@ -101,7 +133,8 @@ fn (ag: ^Agent) setPath*(sys: ^rail.System, from, to: ^rail.Switch) {
 	ag.path = []PathFragment{PathFragment{
 			pos: &lastSw.pos,
 			color: &lastSw.color,
-			occ: &lastSw.occ}}
+			occ: &lastSw.occ,
+			isSwitch: true}}
 
 	for i,sg in p {
 		// offset of the current segment in the array
@@ -144,23 +177,11 @@ fn (ag: ^Agent) setPath*(sys: ^rail.System, from, to: ^rail.Switch) {
 		ag.path[len(ag.path) - 1] = PathFragment{
 			pos: &lastSw.pos,
 			color: &lastSw.color,
-			occ: &lastSw.occ}
+			occ: &lastSw.occ,
+			isSwitch: true}
 	}
 
 	ag.tail = 0
-}
-
-fn (ag: ^Agent) coordsAt(index: th.fu): th.Vf2 {
-	if trunc(index) == index || trunc(index) + 1 >= len(ag.path) {
-		return ag.path[trunc(index)].pos^
-	}
-
-	p1 := ag.path[trunc(index)].pos^
-	p2 := ag.path[trunc(index) + 1].pos^
-
-	d := p2.sub(p1)
-	m := index - trunc(index)
-	return p1.add(d.mul(th.Vf2{m, m}))
 }
 
 fn (ag: ^Agent) draw() {
@@ -172,26 +193,28 @@ fn (ag: ^Agent) draw() {
 
 	scaler := th.Vf2{rail.tileSize, rail.tileSize}
 
+	sz := 0.0
+	const detail = 5
+	for i:=0.0; i < ag.length; i+=1.0/detail {
+		sz += ag.sizeOf(ag.tail + i)
+	}
+	sz /= ag.length * detail
+
 	lp := c.toScreen(ag.coordsAt(ag.tail)).mul(scaler)
-	for i:=0; i <= ag.length; i++ {
+	realLen := ag.length / sz
+	for i:=1.0; i <= realLen; i+=1 {
 		p := c.toScreen(ag.coordsAt(ag.tail + i)).mul(scaler)
 		rail.drawRail(th.green, lp, p)
 		lp = p
 	}
-}
-
-fn (ag: ^Agent) paint(color: uint32) {
-	for i:=trunc(ag.tail); i < trunc(ag.tail + ag.length); i++ {
-		ag.path[i].color^ = color
-	}
+	p := c.toScreen(ag.coordsAt(ag.tail + realLen)).mul(scaler)
+	rail.drawRail(th.green, lp, p)
 }
 
 fn (ag: ^Agent) update*(delta: th.fu) {
 	if len(ag.path) == 0 {
 		return
 	}
-
-	ag.paint(rail.railColor)
 
 	switch ag.state {
 	case agIdle:
@@ -206,7 +229,6 @@ fn (ag: ^Agent) update*(delta: th.fu) {
 	}
 
 	ag.move(delta)
-	//ag.paint(th.green)
 	ag.draw()
 }
 

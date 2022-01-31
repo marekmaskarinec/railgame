@@ -67,7 +67,7 @@ type System* = struct {
 }
 
 const (
-	railColor* = th.black
+	railColor* = 0xcdcde7ff
 )
 
 var (
@@ -718,7 +718,7 @@ fn (sys: ^System) draw*(cam: rect.Rect) {
 
 	for sw in sys.swis {
 		p := c.toScreen(sw.pos)
-		canvas.drawRect(0xff44, rect.mk(
+		canvas.drawRect(railColor, rect.mk(
 			p.x * cellSize, p.y * cellSize, cellSize, cellSize))
 		//canvas.drawText(repr(sw.id), th.Vf2{p.x * cellSize, p.y * cellSize}, th.cyan, 0.8)
 	}

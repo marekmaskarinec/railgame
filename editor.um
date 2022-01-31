@@ -264,5 +264,5 @@ fn handle*(cam: rect.Rect) {
 	ag.update(th.delta)
 	ag2.update(th.delta)
 
-	canvas.drawText(modeNames[mode], th.Vf2{2, 2}, th.black, 2)
+	canvas.drawText(modeNames[mode], th.Vf2{2, 2}, rail.railColor, 2)
 }
