@@ -13,6 +13,7 @@ import (
 )
 
 type (
+	// implements: agent.PathFragment
 	Tile* = struct {
 		parent: ^Segment
 		index: int
@@ -20,16 +21,22 @@ type (
 		// get the rails angle.
 		rotation: th.fu
 		pos: th.Vf2
+
+		color: uint32
 	}
 
 	// Switch is multiple segments ending in one place. Even signal is a switch,
 	// but with only two segments.
+	// implements: agent.PathFragment
 	Switch* = struct {
 		segs: []^Segment
 		// which end of respective segment is part of the switch
 		ends: []int
 		pos: th.Vf2
 		id: int
+
+		color: uint32
+		occ: int
 	}
 
 	// an edge between two switches
@@ -40,30 +47,8 @@ type (
 		tiles: []Tile
 		id: int
 
-		occ: ^Agent
-	}
-
-	// A subset of train used in simulation
-	Agent* = struct {
-		length: int
-
-		// max speed in tiles per ms
-		maxSpeed: th.fu
-		// current speed in tiles per ms
-		speed: th.fu
-		// acceleration per ms
-		accel: th.fu
-		// braking per ms
-		braking: th.fu
-
-		// path the agent goes through. nulls are switches
-		path: []^Tile
-
-		// index on which the trains tail is
-		tail: th.fu
-
-		// agent state
-		state: int
+		// id of the agent that occupies the segment
+		occ: int
 	}
 )
 
@@ -82,9 +67,7 @@ type System* = struct {
 }
 
 const (
-	agIdle = 0
-	agAccel
-	agBrake
+	railColor* = th.black
 )
 
 var (
@@ -217,6 +200,7 @@ fn (sys: ^System) mkSwitch(pos: th.Vf2): ^Switch {
 	sw.segs = []^Segment{}
 	sw.ends = []int{}
 	sw.pos = pos
+	sw.color = railColor
 	sys.swisMap[round(pos.x)][round(pos.y)] = sw
 	return sw
 }
@@ -233,6 +217,7 @@ fn (sg: ^Segment) rebuildTiles(sys: ^System) {
 	for i, t in sg.tiles {
 		sg.tiles[i].index = i
 		sg.tiles[i].parent = sg
+		sg.tiles[i].color = railColor
 		sys.at(sg.tiles[i].pos)^ = &sg.tiles[i]
 	}
 }
@@ -470,7 +455,7 @@ fn (sw: ^Switch) merge*(sys: ^System): ^Segment {
 	sg1 := sw.segs[0]
 	sg2 := sw.segs[1]
 
-	swt := Tile{sg1, len(sg1.tiles), sg2.tiles[0].rotation, sw.pos}
+	swt := Tile{sg1, len(sg1.tiles), sg2.tiles[0].rotation, sw.pos, railColor}
 
 	if sw.ends[0] == 0 {
 		if sw.ends[1] == 0 {
@@ -681,143 +666,30 @@ fn load*(src: str): System {
 	return sys
 }
 
-fn (ag: ^Agent) markSegs() {
-	b := round((ag.speed * ag.speed) / (2 * ag.braking) + ag.length) + 2
-
-	if ag.state == agBrake {
-		ag.state = agIdle
-	} else {
-		ag.state = agAccel
-	}
-
-	for off:=0; off < b; off++ {
-		if round(off + ag.tail) >= len(ag.path) {
-			ag.state = agBrake
-			break
-		}
-
-		if ag.path[round(off + ag.tail)] == null {
-			continue
-		}
-		p := ag.path[round(off + ag.tail)].parent
-		if p.occ != null && p.occ != ag {
-			ag.state = agBrake
-			break
-		}
-
-		p.occ = ag
-	}
-}
-
-fn (ag: ^Agent) move(delta: th.fu) {
-	ot := ag.tail
-	ag.tail += ag.speed * delta
-
-	// remove tail segs
-	for a:=0; ot < ag.tail; ot+=1 {
-		if ag.path[round(ot)] == null {
-			continue
-		}
-		ag.path[round(ot)].parent.occ = null
-	}
-
-	ag.markSegs()
-}
-
-// only debug
-fn (ag: ^Agent) draw*() {
-	if len(ag.path) == 0 {
+fn drawRail*(col: uint32, s, e: th.Vf2) {
+	d := e.sub(s)
+	mag := d.mag()
+	if mag == 0 {
 		return
 	}
+	d.x /= mag
+	d.y /= mag
+	o := th.Vf2{ -d.y * tileSize * 0.5, d.x * tileSize * 0.5 }
 
-	const cellSize = 2
-	c := global.cam
-	c.x /= cellSize
-	c.y /= cellSize
-	c.w /= cellSize
-	c.h /= cellSize
+	s = s.add(th.Vf2{tileSize * 0.5, tileSize * 0.5})
+	e = e.add(th.Vf2{tileSize * 0.5, tileSize * 0.5})
 
-	canvas.drawText(
-		"Agent:" +
-		"\n  tail: " + repr(ag.tail) +
-		"\n  speed: " + repr(ag.speed) +
-		"\n  mode: " + repr(ag.state),
-		th.Vf2{0, 20}, th.black, 1)
+	off := d.norm().mul(th.Vf2{tileSize * 0.2, tileSize * 0.2})
+	s = s.sub(off)
+	e = e.add(off)
 
-	for i:=ag.tail; i < ag.tail + ag.length && round(i) < len(ag.path); i+=1 {
-		t := ag.path[round(i)]
-		if t == null {
-			continue
-		}
+	p1 := s.sub(o)
+	p2 := e.sub(o)
+	canvas.drawLine(col, p1, p2, 0.6)
 
-		p := c.toScreen(t.pos)
-		canvas.drawRect(th.green, rect.mk(
-			p.x * cellSize, p.y * cellSize, cellSize, cellSize))
-	}
-
-	b := (ag.speed * ag.speed) / (2 * ag.braking) + 2
-	for i:=ag.tail + ag.length; i < ag.tail + ag.length + b && round(i) < len(ag.path); i+=1 {
-		t := ag.path[round(i)]
-		if t == null {
-			continue
-		}
-
-		p := c.toScreen(t.pos)
-		canvas.drawRect(th.magenta, rect.mk(
-			p.x * cellSize, p.y * cellSize, cellSize, cellSize))
-	}
-}
-
-fn (ag: ^Agent) setPath*(sys: ^System, from, to: ^Switch) {
-	p := sys.navigate(from, to)
-	ag.path = []^Tile{}
-	for i,sg in p {
-		off := len(ag.path)
-		// +1 for the switch
-		ag.path = append(ag.path, make([]^Tile, len(sg.tiles) + 1))
-
-		rev := false
-		if i == 0 {
-			if sg.swis[1] == from {
-				rev = true
-			}
-		} else {
-			sg2 := p[i - 1]
-			if sg.swis[1] == sg2.swis[0] || sg.swis[1] == sg2.swis[1] {
-				rev = true
-			}
-		}
-
-		for i,t in sg.tiles {
-			index := i
-			if rev {
-				index = len(sg.tiles) - 1 - i
-			}
-			ag.path[off + i] = &sg.tiles[index]
-		}
-	}
-
-	ag.tail = 0
-}
-
-fn (ag: ^Agent) update*(delta: th.fu) {
-	if len(ag.path) == 0 {
-		return
-	}
-
-	switch ag.state {
-	case agIdle:
-	case agAccel:
-		ag.speed += ag.accel * delta
-		if ag.speed > ag.maxSpeed {
-			ag.speed = ag.maxSpeed
-		}
-	case agBrake:
-		ag.speed -= ag.braking * delta
-		ag.speed = util.maxf(ag.speed, 0)
-	}
-
-	ag.move(delta)
+	p1 = s.add(o)
+	p2 = e.add(o)
+	canvas.drawLine(col, p1, p2, 0.6)
 }
 
 // draws the system
@@ -833,38 +705,15 @@ fn (sys: ^System) draw*(cam: rect.Rect) {
 	scaler := th.Vf2{tileSize, tileSize}
 
 	for sg in sys.segs {
-		col := th.black
-		if sg.occ != null {
-			col = th.cyan
+		col := railColor
+
+		last := c.toScreen(sg.swis[0].pos).mul(scaler)
+		for i:=0; i < len(sg.tiles); i++ {
+			p := c.toScreen(sg.tiles[i].pos).mul(scaler)
+			drawRail(railColor, last, p)
+			last = p
 		}
-
-		s := sg.swis[0].pos.mul(scaler)
-		e := sg.swis[1].pos.mul(scaler)
-		d := e.sub(s)
-		mag := d.mag()
-		d.x /= mag
-		d.y /= mag
-		o := th.Vf2{ -d.y * tileSize * 0.5, d.x * tileSize * 0.5 }
-
-		s = s.add(th.Vf2{tileSize * 0.5, tileSize * 0.5})
-		e = e.add(th.Vf2{tileSize * 0.5, tileSize * 0.5})
-
-		off := d.norm().mul(th.Vf2{tileSize * 0.2, tileSize * 0.2})
-		s = s.sub(off)
-		e = e.add(off)
-
-		p1 := s.sub(o)
-		p2 := e.sub(o)
-		canvas.drawLine(col, p1, p2, 0.6)
-
-		p1 = s.add(o)
-		p2 = e.add(o)
-		canvas.drawLine(col, p1, p2, 0.6)
-		/*for t in sg.tiles {
-			p := c.toScreen(t.pos)
-			canvas.drawRect(col, rect.mk(
-				p.x * cellSize, p.y * cellSize, cellSize, cellSize))
-		}*/
+		drawRail(railColor, last, c.toScreen(sg.swis[1].pos).mul(scaler))
 	}
 
 	for sw in sys.swis {

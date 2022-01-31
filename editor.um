@@ -9,6 +9,7 @@ import (
 
 	"rail.um"
 	"util.um"
+	"agent.um"
 	"global.um"
 )
 
@@ -36,8 +37,8 @@ var (
 	np: th.Vf2
 	np2: th.Vf2
 
-	ag: rail.Agent
-	ag2: rail.Agent
+	ag: agent.Agent
+	ag2: agent.Agent
 
 	camPos: th.Vf2
 )
@@ -54,17 +55,19 @@ fn init*(s: rail.System) {
 	reset()
 	sys = s
 
-	ag = rail.Agent{
+	ag = agent.Agent{
 		length: 5,
 		maxSpeed: 5.0/1000,
 		accel: 0.005/1000,
 		braking: 0.002/1000}
+	ag.init()
 
-	ag2 = rail.Agent{
+	ag2 = agent.Agent{
 		length: 3,
 		maxSpeed: 3.0/1000,
 		accel: 0.5/1000,
 		braking: 0.2/1000}
+	ag2.init()
 }
 
 fn scanSwitches(p1, p2: th.Vf2): []^rail.Switch {
@@ -106,6 +109,7 @@ fn genPlaceTiles(p2: th.Vf2): []rail.Tile {
 	for i, t in tiles {
 		tiles[i].pos = p
 		tiles[i].rotation = a
+		tiles[i].color = rail.railColor
 		p = p.add(n)
 	}
 
@@ -259,8 +263,6 @@ fn handle*(cam: rect.Rect) {
 
 	ag.update(th.delta)
 	ag2.update(th.delta)
-	ag.draw()
-	ag2.draw()
 
 	canvas.drawText(modeNames[mode], th.Vf2{2, 2}, th.black, 2)
 }

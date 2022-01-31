@@ -1,0 +1,212 @@
+
+import (
+	"th.um"
+	"rect.um"
+	"canvas.um"
+
+	"rail.um"
+	"util.um"
+	"global.um"
+)
+
+type PathFragment* = struct {
+	pos: ^th.Vf2
+	color: ^uint32
+	occ: ^int
+}
+
+type Agent* = struct {
+	length: int
+
+	// max speed in tiles per ms
+	maxSpeed: th.fu
+	// current speed in tiles per ms
+	speed: th.fu
+	// acceleration per ms
+	accel: th.fu
+	// braking per ms
+	braking: th.fu
+
+	// path the agent goes through. nulls are switches
+	path: []PathFragment
+
+	// index on which the trains tail is
+	tail: th.fu
+
+	// agent state
+	state: int
+
+	id: int
+}
+
+const (
+	agIdle = 0
+	agAccel
+	agBrake
+)
+
+var (
+	idCounter: int
+)
+
+fn (ag: ^Agent) init*() {
+	idCounter++
+	ag.id = idCounter
+}
+
+fn (ag: ^Agent) getBraking(): th.iu {
+	return round((ag.speed * ag.speed) / (2 * ag.braking) + ag.length) + 2
+}
+
+fn (ag: ^Agent) markSegs() {
+	b := ag.getBraking()
+
+	if ag.state == agBrake {
+		ag.state = agIdle
+	} else {
+		ag.state = agAccel
+	}
+
+	for off:=0; off < b; off++ {
+		if round(off + ag.tail) >= len(ag.path) {
+			ag.state = agBrake
+			break
+		}
+
+		p := ag.path[round(off + ag.tail)]
+		if p.occ^ != 0 && p.occ^ != ag.id {
+			ag.state = agBrake
+			break
+		}
+
+		p.occ^ = ag.id
+	}
+}
+
+fn (ag: ^Agent) move(delta: th.fu) {
+	ot := trunc(ag.tail)
+	ag.tail += ag.speed * delta
+
+	swi := 0
+	for a:=0.0; ot < ag.tail; ot++ {
+		ag.path[ot].occ^ = 0
+	}
+
+	ag.markSegs()
+}
+
+fn (ag: ^Agent) setPath*(sys: ^rail.System, from, to: ^rail.Switch) {
+	p := sys.navigate(from, to)
+	lastSw := from
+	ag.path = []PathFragment{PathFragment{
+			pos: &lastSw.pos,
+			color: &lastSw.color,
+			occ: &lastSw.occ}}
+
+	for i,sg in p {
+		// offset of the current segment in the array
+		off := len(ag.path)
+		// +1 for the switch
+		ag.path = append(ag.path, make([]PathFragment, len(sg.tiles) + 1))
+
+		// update the switch variable
+		if sg.swis[0] == lastSw {
+			lastSw = sg.swis[1]
+		} else {
+			lastSw = sg.swis[0]
+		}
+
+		// decide whether the tile order needs to be reversed
+		rev := false
+		if i == 0 {
+			if sg.swis[1] == from {
+				rev = true
+			}
+		} else {
+			sg2 := p[i - 1]
+			if sg.swis[1] == sg2.swis[0] || sg.swis[1] == sg2.swis[1] {
+				rev = true
+			}
+		}
+
+		// fill path with tiles
+		for i,t in sg.tiles {
+			index := i
+			if rev {
+				index = len(sg.tiles) - 1 - i
+			}
+			ag.path[off + i] = PathFragment{
+				pos: &sg.tiles[index].pos,
+				color: &sg.tiles[index].color,
+				occ: &sg.tiles[index].parent.occ}
+		}
+
+		ag.path[len(ag.path) - 1] = PathFragment{
+			pos: &lastSw.pos,
+			color: &lastSw.color,
+			occ: &lastSw.occ}
+	}
+
+	ag.tail = 0
+}
+
+fn (ag: ^Agent) coordsAt(index: th.fu): th.Vf2 {
+	if trunc(index) == index || trunc(index) + 1 >= len(ag.path) {
+		return ag.path[trunc(index)].pos^
+	}
+
+	p1 := ag.path[trunc(index)].pos^
+	p2 := ag.path[trunc(index) + 1].pos^
+
+	d := p2.sub(p1)
+	m := index - trunc(index)
+	return p1.add(d.mul(th.Vf2{m, m}))
+}
+
+fn (ag: ^Agent) draw() {
+	c := global.cam
+	c.x /= rail.tileSize
+	c.y /= rail.tileSize
+	c.w /= rail.tileSize
+	c.h /= rail.tileSize
+
+	scaler := th.Vf2{rail.tileSize, rail.tileSize}
+
+	lp := c.toScreen(ag.coordsAt(ag.tail)).mul(scaler)
+	for i:=0; i <= ag.length; i++ {
+		p := c.toScreen(ag.coordsAt(ag.tail + i)).mul(scaler)
+		rail.drawRail(th.green, lp, p)
+		lp = p
+	}
+}
+
+fn (ag: ^Agent) paint(color: uint32) {
+	for i:=trunc(ag.tail); i < trunc(ag.tail + ag.length); i++ {
+		ag.path[i].color^ = color
+	}
+}
+
+fn (ag: ^Agent) update*(delta: th.fu) {
+	if len(ag.path) == 0 {
+		return
+	}
+
+	ag.paint(rail.railColor)
+
+	switch ag.state {
+	case agIdle:
+	case agAccel:
+		ag.speed += ag.accel * delta
+		if ag.speed > ag.maxSpeed {
+			ag.speed = ag.maxSpeed
+		}
+	case agBrake:
+		ag.speed -= ag.braking * delta
+		ag.speed = util.maxf(ag.speed, 0)
+	}
+
+	ag.move(delta)
+	//ag.paint(th.green)
+	ag.draw()
+}
+
