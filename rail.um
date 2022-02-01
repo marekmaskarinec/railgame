@@ -47,6 +47,9 @@ type (
 		tiles: []Tile
 		id: int
 
+		// direction of the segment. -1 is both, 0 is to switch 0, 1 is to switch 1
+		dir: int
+
 		// id of the agent that occupies the segment
 		occ: int
 	}
@@ -208,7 +211,8 @@ fn (sys: ^System) mkSwitch(pos: th.Vf2): ^Switch {
 // creates a segment
 fn (sys: ^System) mkSegment(): ^Segment {
 	sys.segs = append(sys.segs, new(Segment))
-	sg := sys.segs[len(sys.segs)- 1]
+	sg := sys.segs[len(sys.segs) - 1]
+	sg.dir = -1
 	return sg
 }
 
@@ -371,7 +375,7 @@ fn (sg: ^Segment) reduce*(sys: ^System, start, end: int) {
 
 // checks whether a list of tiles can be placed into the system
 fn (sys: ^System) canPlace*(tiles: []Tile): bool {
-	if len(tiles) <= 2 {
+	if len(tiles) <= 3 {
 		return false
 	}
 
@@ -511,6 +515,10 @@ fn (sys: ^System) navigate*(from, to: ^Switch): []^Segment {
 		}
 
 		for i,sg in c.segs {
+			if sg.dir != -1 && c != sg.swis[sg.dir] {
+				continue
+			}
+
 			score := int(cost.get(c.id)) + len(sg.tiles)
 			sw := sg.oppositeSw(c)
 
@@ -692,6 +700,15 @@ fn drawRail*(col: uint32, s, e: th.Vf2) {
 	canvas.drawLine(col, p1, p2, 0.6)
 }
 
+fn drawArrow*(col: uint32, p: th.Vf2, a: th.fu) {
+	const agl = 45
+
+	p1 := th.Vf2{p.x, p.y - tileSize * 0.5}.rotated(p, a + 90 + agl + 90)
+	canvas.drawLine(col, p, p1, 0.6)
+	p1 = th.Vf2{p.x, p.y - tileSize * 0.5}.rotated(p, a - 90 - agl + 90)
+	canvas.drawLine(col, p, p1, 0.6)
+}
+
 // draws the system
 fn (sys: ^System) draw*(cam: rect.Rect) {
 	const cellSize = 2
@@ -711,6 +728,12 @@ fn (sys: ^System) draw*(cam: rect.Rect) {
 		for i:=0; i < len(sg.tiles); i++ {
 			p := c.toScreen(sg.tiles[i].pos).mul(scaler)
 			drawRail(railColor, last, p)
+
+			if sg.dir != -1 && (i + 1) % 3 == 0 {
+				ap := p.add(th.Vf2{tileSize/2, tileSize/2})
+				drawArrow(railColor, ap, sg.tiles[i].pos.angleTo(sg.swis[sg.dir].pos))
+			}
+
 			last = p
 		}
 		drawRail(railColor, last, c.toScreen(sg.swis[1].pos).mul(scaler))
@@ -718,7 +741,11 @@ fn (sys: ^System) draw*(cam: rect.Rect) {
 
 	for sw in sys.swis {
 		p := c.toScreen(sw.pos)
-		canvas.drawRect(railColor, rect.mk(
+		col := railColor
+		if sw.occ != 0 {
+			col = th.red
+		}
+		canvas.drawRect(col, rect.mk(
 			p.x * cellSize, p.y * cellSize, cellSize, cellSize))
 		//canvas.drawText(repr(sw.id), th.Vf2{p.x * cellSize, p.y * cellSize}, th.cyan, 0.8)
 	}

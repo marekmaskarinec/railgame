@@ -16,11 +16,10 @@ import (
 const (
 	edOff = 0
 	edPlace
-	edMerge
 	edDel
 	edDebug
 
-	modeNames = [5]str{"OFF", "PLACE", "MERGE", "DELETE", "DEBUG"}
+	modeNames = [4]str{"OFF", "PLACE", "DELETE", "DEBUG"}
 
 	panSpeed = 0.05
 )
@@ -128,8 +127,6 @@ fn snap*(v, s: th.fu): th.fu {
 fn handle*(cam: rect.Rect) {
 	if input.isJustPressed('p') {
 		mode = edPlace
-	} else if input.isJustPressed('m') {
-		mode = edMerge
 	} else if input.isJustPressed('d') {
 		mode = edDel
 	} else if input.isJustPressed('g') {
@@ -217,13 +214,21 @@ fn handle*(cam: rect.Rect) {
 				hasOrigin = true
 				origin = mp
 			}
-		}
-	case edMerge:
-		mp := rail.worldToSys(input.getGlobalMousePos(global.cam)).flr()
-		if input.isJustPressed(input.mouse1) {
-			sw := sys.atSwis(mp)^
-			if sw != null {
-				sw.merge(&sys)
+
+			if input.isJustPressed(input.mouse3) {
+				sw := sys.atSwis(mp)^
+				if sw != null {
+					sw.merge(&sys)
+				}
+
+				t := sys.at(mp)^
+				if t != null {
+					sg := t.parent
+					sg.dir++
+					if sg.dir == 2 {
+						sg.dir = -1
+					}
+				}
 			}
 		}
 	case edDel:

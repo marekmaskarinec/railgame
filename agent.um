@@ -13,6 +13,7 @@ type PathFragment* = struct {
 	pos: ^th.Vf2
 	color: ^uint32
 	occ: ^int
+	occSw: ^int
 	isSwitch: bool
 }
 
@@ -99,13 +100,15 @@ fn (ag: ^Agent) markSegs() {
 
 		p := ag.path[round(off + ag.tail)]
 		if p.occ^ != 0 && p.occ^ != ag.id {
-			if !p.isSwitch || b < ag.length {
-				ag.state = agBrake
-			}
+			ag.state = agBrake
 			break
 		}
 
 		p.occ^ = ag.id
+
+		if p.occSw^ == 0 {
+			p.occSw^ = ag.id
+		}
 	}
 }
 
@@ -116,6 +119,7 @@ fn (ag: ^Agent) move(delta: th.fu) {
 		sz += ag.sizeOf(ag.tail + i)
 	}
 	sz /= ag.length
+	if sz == 0 { return }
 
 	ag.tail += ag.speed*delta / sz
 
@@ -134,6 +138,7 @@ fn (ag: ^Agent) setPath*(sys: ^rail.System, from, to: ^rail.Switch) {
 			pos: &lastSw.pos,
 			color: &lastSw.color,
 			occ: &lastSw.occ,
+			occSw: &lastSw.occ,
 			isSwitch: true}}
 
 	for i,sg in p {
@@ -171,13 +176,15 @@ fn (ag: ^Agent) setPath*(sys: ^rail.System, from, to: ^rail.Switch) {
 			ag.path[off + i] = PathFragment{
 				pos: &sg.tiles[index].pos,
 				color: &sg.tiles[index].color,
-				occ: &sg.tiles[index].parent.occ}
+				occ: &sg.tiles[index].parent.occ,
+				occSw: &lastSw.occ}
 		}
 
 		ag.path[len(ag.path) - 1] = PathFragment{
 			pos: &lastSw.pos,
 			color: &lastSw.color,
 			occ: &lastSw.occ,
+			occSw: &lastSw.occ,
 			isSwitch: true}
 	}
 
@@ -199,6 +206,7 @@ fn (ag: ^Agent) draw() {
 		sz += ag.sizeOf(ag.tail + i)
 	}
 	sz /= ag.length * detail
+	if sz == 0 { return }
 
 	lp := c.toScreen(ag.coordsAt(ag.tail)).mul(scaler)
 	realLen := ag.length / sz

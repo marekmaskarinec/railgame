@@ -6,11 +6,9 @@ editor:
 	- zooming
 	- gui
 
-trains and agents:
-	- properly test agent behaviour
-	- check for occupancy of switches
-	- add train struct and draw it
-		- individual carriages
+agent:
+	- auto repath, if no path found (occupant of a target switch is standing)
+		- add a flag to navigate that filters segments
 
 rail:
 	- placement rules
