@@ -7,6 +7,7 @@ import (
 	"window.um"
 
 	"rail.um"
+	"util.um"
 	"editor.um"
 	"global.um"
 )
@@ -26,5 +27,7 @@ fn main() {
 
 		editor.sys.draw(global.cam)
 		editor.handle(global.cam)
+
+		canvas.drawText(repr(1000/util.maxf(th.delta, 1)), th.Vf2{180, 1}, rail.railColor, 1)
 	}
 }

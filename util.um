@@ -32,3 +32,9 @@ fn minf*(v1, v2: th.fu): th.fu {
 fn snap*(v, s: th.fu): th.fu {
 	return round(v / s) * s
 }
+
+fn rrand*(min, max: int): int {
+	r := std.rand()
+	r = r % (max - min)
+	return r + min
+}

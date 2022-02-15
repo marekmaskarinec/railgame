@@ -12,6 +12,7 @@ agent:
 
 rail:
 	- placement rules
+		- make sure placement won't create a segment shorter than 3
 		- switch limits:
 			- the maximum is 4, but it has to be a crossing
 			- if any of the segments has a 45 degree angle to another one,

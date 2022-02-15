@@ -36,8 +36,8 @@ var (
 	np: th.Vf2
 	np2: th.Vf2
 
-	ag: agent.Agent
-	ag2: agent.Agent
+	debugSegs: []^rail.Switch
+	agents: []agent.Agent
 
 	camPos: th.Vf2
 )
@@ -48,25 +48,24 @@ fn reset*() {
 	hasOrigin = false
 
 	camPos = th.Vf2{global.cam.x, global.cam.y}
+
+	debugSegs = []^rail.Switch{}
+	agents = []agent.Agent{}
+}
+
+fn genDbgAgent(): agent.Agent {
+	ag := agent.Agent{
+		length: util.rrand(2, 8),
+		maxSpeed: th.fu(util.rrand(4, 10))/1000,
+		accel: util.rrand(1, 5)/1000.0/1000,
+		braking: util.rrand(5, 20)/10000.0/1000}
+	ag.init()
+	return ag
 }
 
 fn init*(s: rail.System) {
 	reset()
 	sys = s
-
-	ag = agent.Agent{
-		length: 5,
-		maxSpeed: 5.0/1000,
-		accel: 0.005/1000,
-		braking: 0.002/1000}
-	ag.init()
-
-	ag2 = agent.Agent{
-		length: 3,
-		maxSpeed: 3.0/1000,
-		accel: 0.5/1000,
-		braking: 0.2/1000}
-	ag2.init()
 }
 
 fn scanSwitches(p1, p2: th.Vf2): []^rail.Switch {
@@ -246,28 +245,25 @@ fn handle*(cam: rect.Rect) {
 			if  np.x == 0 && np.y == 0 {
 				np = mp
 			} else {
-				sw1 := sys.atSwis(np)^
-				sw2 := sys.atSwis(mp)^
-				rail.path = sys.navigate(sw1, sw2)
-				ag.setPath(&sys, sw1, sw2)
+				printf("here\n")
+				debugSegs = append(debugSegs, []^rail.Switch{
+					sys.atSwis(np)^, sys.atSwis(mp)^})
+				agents = append(agents, genDbgAgent())
 				np = th.Vf2{}
-			}
-		}
-		if input.isJustPressed(input.mouse3) && sys.atSwis(mp)^ != null {
-			if np2.x == 0 && np2.y == 0 {
-				np2 = mp
-			} else {
-				sw1 := sys.atSwis(np2)^
-				sw2 := sys.atSwis(mp)^
-				rail.path = sys.navigate(sw1, sw2)
-				ag2.setPath(&sys, sw1, sw2)
-				np2 = th.Vf2{}
 			}
 		}
 	}
 
-	ag.update(th.delta)
-	ag2.update(th.delta)
+	for i,ag in agents {
+		if len(ag.path) != 0 && ag.state != agent.agDone {
+			agents[i].update(th.delta)
+			continue
+		}
+
+		endsi := std.rand() % (len(debugSegs)/2) * 2
+		agents[i].setPath(&sys, debugSegs[endsi], debugSegs[endsi + 1])
+		agents[i].update(th.delta)
+	}
 
 	canvas.drawText(modeNames[mode], th.Vf2{2, 2}, rail.railColor, 2)
 }

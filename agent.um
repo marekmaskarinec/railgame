@@ -42,9 +42,10 @@ type Agent* = struct {
 }
 
 const (
-	agIdle = 0
-	agAccel
-	agBrake
+	agIdle* = 0
+	agAccel*
+	agBrake*
+	agDone*
 )
 
 var (
@@ -112,6 +113,15 @@ fn (ag: ^Agent) markSegs() {
 	}
 }
 
+fn (ag: ^Agent) done() {
+	for i:=trunc(ag.tail); i < len(ag.path); i++ {
+		ag.path[i].occ^ = 0
+		ag.path[i].occSw^ = 0
+	}
+
+	ag.path = []PathFragment{}
+}
+
 fn (ag: ^Agent) move(delta: th.fu) {
 	ot := trunc(ag.tail)
 	sz := 0.0
@@ -122,6 +132,12 @@ fn (ag: ^Agent) move(delta: th.fu) {
 	if sz == 0 { return }
 
 	ag.tail += ag.speed*delta / sz
+
+	if ag.speed == 0 && ag.path[trunc(ag.tail)].occSw == ag.path[len(ag.path) - 1].occSw {
+		ag.state = agDone
+		ag.done()
+		return
+	}
 
 	swi := 0
 	for a:=0.0; ot < ag.tail; ot++ {
@@ -189,6 +205,7 @@ fn (ag: ^Agent) setPath*(sys: ^rail.System, from, to: ^rail.Switch) {
 	}
 
 	ag.tail = 0
+	ag.state = agIdle
 }
 
 fn (ag: ^Agent) draw() {
@@ -234,6 +251,8 @@ fn (ag: ^Agent) update*(delta: th.fu) {
 	case agBrake:
 		ag.speed -= ag.braking * delta
 		ag.speed = util.maxf(ag.speed, 0)
+	case agDone:
+		return
 	}
 
 	ag.move(delta)
