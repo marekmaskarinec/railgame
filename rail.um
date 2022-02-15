@@ -383,7 +383,8 @@ fn (sys: ^System) canPlace*(tiles: []Tile): bool {
 	left := v.rotated(th.Vf2{}, -90)
 	right := v.rotated(th.Vf2{}, 90)
 	for i, t in tiles {
-		// if there is an adjacent rail somewhere else than the start and en
+
+		// check for an adjacent rail in other places than start and end
 		lt := sys.at(t.pos.add(left))^
 		rt := sys.at(t.pos.add(right))^
 		if (lt != null && round(fabs(lt.rotation - t.rotation)) % 180 == 0) ||
@@ -392,14 +393,27 @@ fn (sys: ^System) canPlace*(tiles: []Tile): bool {
 		}
 
 		t2 := sys.at(t.pos)^
+		// if there is no tile at current position, following checks don't have to be done
 		if t2 == null {
 			continue
 		}
 
+		// check for a segment going in the same direction
 		if sg == t2.parent {
 			return false
 		}
 		sg = t2.parent
+
+		// check for creating a segment shorter than 3 by splitting
+		// t2's parent
+		if t2.index < 3 || t2.index > len(t2.parent.tiles) - 4 {
+			return false
+		}
+		// t's parent. Here it needs to be one longer, since switches are included
+		// in the tiles array
+		if i < 4 || i > len(tiles) - 5 {
+			return false
+		}
 	}
 
 	return true
