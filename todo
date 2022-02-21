@@ -18,3 +18,18 @@ rail:
 				only 3 are allowed
 		- properly check for diagonal neighboring segments
 
+roadmap
+-------
+
+level struct + file - game, functionality
+train spawner - rail, functionality
+
+measuring throughput - agent, functionality
+run level button - editor, functionality
+optimize rail drawing - rail, optimizations
+gui tool chooser - editor, ui
+
+done
+----
+
+hover visualisations - editor, visualisation

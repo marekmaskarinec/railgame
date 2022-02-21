@@ -8,6 +8,8 @@ import (
 
 	"rail.um"
 	"util.um"
+	"game.um"
+	"level.um"
 	"editor.um"
 	"global.um"
 )
@@ -21,12 +23,17 @@ fn main() {
 	sys.initSize(100, 100)
 	sys.reset()
 
-	editor.init(sys)
+	game.lvl = level.Level{
+		sys: sys,
+		passesNeeded: 2,
+		timeToPass: 40000}
+	game.init()
+	game.reset()
 	for window.cycle(global.cam) {
-		canvas.drawRect(0x604a99ff, rect.Rect{0, 0, global.cam.w, global.cam.h})
+		canvas.drawRect(global.bgColor, rect.Rect{0, 0, global.cam.w, global.cam.h})
 
-		editor.sys.draw(global.cam)
-		editor.handle(global.cam)
+		game.handle()
+		game.draw()
 
 		canvas.drawText(repr(1000/util.maxf(th.delta, 1)), th.Vf2{180, 1}, rail.railColor, 1)
 	}

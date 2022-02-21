@@ -1,0 +1,146 @@
+
+import (
+	"th.um"
+	"std.um"
+
+	"rail.um"
+	"agent.um"
+	"dialog.um"
+	"global.um"
+)
+
+type Level* = struct {
+	sys: rail.System
+	pairs: []^rail.Switch
+	agents: []agent.Agent
+	passesNeeded: int
+	timeToPass: int
+
+	// runtime stuff
+	simStart: int
+	dg: dialog.Dialog
+	simDone: bool
+	simTook: int
+	passes: []int
+}
+
+const (
+	difficulties = [3]real32{1.5, 1, 0.5}
+)
+
+fn (lvl: ^Level) repathAgent*(i: int) {
+	lvl.agents[i].setPath(&lvl.sys, lvl.pairs[i * 2], lvl.pairs[i * 2 + 1])
+}
+
+fn (lvl: ^Level) resetAgents*() {
+	for i,_ag in lvl.agents {
+		ag := &lvl.agents[i]
+		ag.reset()
+		lvl.repathAgent(i)
+	}
+}
+
+fn (lvl: ^Level) test*(): int {
+	done := false
+
+	const interval = 100
+
+	time := 0
+	for !done {
+		for i,_ag in lvl.agents {
+			ag := &lvl.agents[i]
+
+			if len(ag.path) == 0 { return -1 }
+
+			ag.handle(interval)	
+			if ag.state == agent.agDone {
+				lvl.passes[i]++
+				lvl.repathAgent(i)
+			}
+		}
+	
+		done = true
+		for pc in lvl.passes {
+			if pc < lvl.passesNeeded {
+				done = false
+				break
+			}
+		}
+		time += interval
+	}
+
+	return time
+}
+
+fn (lvl: ^Level) startSim*() {
+	lvl.simDone = false
+	lvl.simStart = th.time
+	lvl.passes = make([]int, len(lvl.agents))
+	lvl.simTook = 0
+}
+
+fn (lvl: ^Level) finishSim() {
+	lvl.simDone = true
+	lvl.dg = dialog.Dialog{
+		title: "LEVEL PASSED",
+		text: "TOOK " + repr(lvl.simTook) + "ms",
+		buttons: []str{"MENU", "EDITOR"},
+		callback: fn(self: ^dialog.Dialog, choice: int) {
+			printf("dialog result: %d\n", choice)
+		},
+		primaryCol: global.bgColor,
+		secondaryCol: rail.railColor}
+	lvl.dg.init()
+}
+
+fn (lvl: ^Level) skipSim*() {
+	lvl.simTook = th.time - lvl.simStart + lvl.test()
+	lvl.finishSim()
+}
+
+fn (lvl: ^Level) reset*() {
+	lvl.resetAgents()
+}
+
+fn (lvl: ^Level) init*() {
+	lvl.agents = []agent.Agent{}
+	lvl.pairs = []^rail.Switch{}
+}
+
+fn (lvl: ^Level) handle*() {
+	if lvl.simDone {
+		lvl.dg.handle()
+		return
+	}
+
+	for i,_ag in lvl.agents {
+		ag := &lvl.agents[i]
+		if len(ag.path) != 0 && ag.state != agent.agDone {
+			ag.handle(th.delta)
+			continue
+		}
+
+		lvl.repathAgent(i)
+		lvl.passes[i]++
+		ag.handle(th.delta)
+	}
+
+	for np in lvl.passes {
+		if np >= lvl.passesNeeded {
+			lvl.simTook = th.time - lvl.simStart
+			lvl.finishSim()
+		}
+	}
+}
+
+fn (lvl: ^Level) draw*() {
+	if lvl.simDone {
+		lvl.dg.draw()
+		return
+	}
+
+	for i,ag in lvl.agents {
+		ag.draw()
+	}
+}
+

@@ -10,6 +10,7 @@ import (
 	"rail.um"
 	"util.um"
 	"agent.um"
+	"level.um"
 	"global.um"
 )
 
@@ -21,12 +22,12 @@ const (
 
 	modeNames = [4]str{"OFF", "PLACE", "DELETE", "DEBUG"}
 
-	panSpeed = 0.05
+	visColor = 0xdfdf47ff
 )
 
 var (
 	mode: int
-	sys*: rail.System
+	sys*: ^rail.System
 
 	// place mode vars
 	origin: th.Vf2
@@ -39,18 +40,15 @@ var (
 	debugSegs: []^rail.Switch
 	agents: []agent.Agent
 
-	camPos: th.Vf2
+	viSw: ^rail.Switch
+
+	lvl: ^level.Level
 )
 
 fn reset*() {
 	mode = edPlace
 
 	hasOrigin = false
-
-	camPos = th.Vf2{global.cam.x, global.cam.y}
-
-	debugSegs = []^rail.Switch{}
-	agents = []agent.Agent{}
 }
 
 fn genDbgAgent(): agent.Agent {
@@ -63,9 +61,9 @@ fn genDbgAgent(): agent.Agent {
 	return ag
 }
 
-fn init*(s: rail.System) {
-	reset()
-	sys = s
+fn init*(l: ^level.Level) {
+	lvl = l
+	sys = &l.sys
 }
 
 fn scanSwitches(p1, p2: th.Vf2): []^rail.Switch {
@@ -120,10 +118,10 @@ fn place*(p2: th.Vf2) {
 }
 
 fn snap*(v, s: th.fu): th.fu {
- return round(v / s) * s
+	return round(v / s) * s
 }
 
-fn handle*(cam: rect.Rect) {
+fn handleInput*() {
 	if input.isJustPressed('p') {
 		mode = edPlace
 	} else if input.isJustPressed('d') {
@@ -137,133 +135,124 @@ fn handle*(cam: rect.Rect) {
 		fprintf(f, "%s\n", sys.export())
 		std.fclose(f)
 	} else if input.isJustPressed('l') {
-		sys = rail.load(util.readall("export.txt"))
+		sys^ = rail.load(util.readall("export.txt"))
 	}
 
-	if input.isPressed(input.key_left) {
-		camPos.x -= panSpeed * th.delta
+}
+
+fn placeMode*() {
+	for x:=0.0; x < global.cam.w; x+=rail.tileSize {
+		if round(x / rail.tileSize) % 2 == 0 {
+			continue
+		}
+		canvas.drawRect(0x22, rect.mk(x, 0, rail.tileSize, global.cam.h))
 	}
-	if input.isPressed(input.key_right) {
-		camPos.x += panSpeed * th.delta
+  
+	for y:=0.0; y < global.cam.h; y+=rail.tileSize {
+		if round(y / rail.tileSize) % 2 == 0 {
+			continue
+		}
+		canvas.drawRect(0x22, rect.mk(0, y, global.cam.w, rail.tileSize))
 	}
-	global.cam.x = util.snap(camPos.x, rail.tileSize)
-	if input.isPressed(input.key_up) {
-		camPos.y -= panSpeed * th.delta
+
+	mp := rail.worldToSys(input.getGlobalMousePos(global.cam)).flr()
+
+	if hasOrigin {
+		p2 := th.Vf2{ 0, -origin.distanceTo(mp) }.
+			rotated(th.Vf2{0, 0}, angle + 90).
+			add(origin).
+			rnd()
+		canPlace := false
+
+		if origin.x != p2.x || origin.y != p2.y {
+			angle = snap(mp.angleTo(origin), 45)
+			canPlace = sys.canPlace(genPlaceTiles(p2))
+
+			if !input.isPressed(input.mouse1) {
+				if canPlace { place(p2) }
+				hasOrigin = false
+			}
+		}
+
+		if input.isJustPressed(input.mouse3) {
+			hasOrigin = false
+		}
+
+		swis := scanSwitches(origin, p2)
+		for sw in swis {
+			canvas.drawLine(0x00ff0099,
+				rail.sysToWorld(p2).add(th.Vf2{1, 1}),
+				rail.sysToWorld(sw.pos).add(th.Vf2{1, 1}), 1)
+		}
+
+		color := rail.railColor 
+		if !canPlace { color = th.red }
+
+		canvas.drawLine(color,
+			global.cam.toScreen(rail.sysToWorld(origin).add(th.Vf2{1, 1})),
+			global.cam.toScreen(rail.sysToWorld(p2).add(th.Vf2{1, 1})),
+			rail.tileSize)
+	} else {
+		if input.isJustPressed(input.mouse1) {
+			hasOrigin = true
+			origin = mp
+		}
+
+		if input.isJustPressed(input.mouse3) {
+			sw := sys.atSwis(mp)^
+			if sw != null {
+				sw.merge(sys)
+			}
+
+			t := sys.at(mp)^
+			if t != null {
+				sg := t.parent
+				sg.dir++
+				if sg.dir == 2 {
+					sg.dir = -1
+				}
+			}
+		}
 	}
-	if input.isPressed(input.key_down) {
-		camPos.y += panSpeed * th.delta
+}
+
+fn handle*(cam: rect.Rect) {
+	handleInput()
+
+	mp := rail.worldToSys(input.getGlobalMousePos(global.cam)).flr()
+	sw := sys.atSwis(mp)
+	if viSw != null {
+		viSw.color = rail.switchColor
 	}
-	global.cam.y = util.snap(camPos.y, rail.tileSize)
+	if sw != null && sw^ != null {
+		sw^.color = visColor
+		viSw = sw^
+	}
 
 	switch mode {
 	case edPlace:
-		for x:=0.0; x < global.cam.w; x+=rail.tileSize {
-			if round(x / rail.tileSize) % 2 == 0 {
-				continue
-			}
-			canvas.drawRect(0x22, rect.mk(x, 0, rail.tileSize, global.cam.h))
-		}
-  
-		for y:=0.0; y < global.cam.h; y+=rail.tileSize {
-			if round(y / rail.tileSize) % 2 == 0 {
-				continue
-			}
-			canvas.drawRect(0x22, rect.mk(0, y, global.cam.w, rail.tileSize))
-		}
-
-		mp := rail.worldToSys(input.getGlobalMousePos(global.cam)).flr()
-
-		if hasOrigin {
-			p2 := th.Vf2{ 0, -origin.distanceTo(mp) }.
-				rotated(th.Vf2{0, 0}, angle + 90).
-				add(origin).
-				rnd()
-			canPlace := false
-
-			if origin.x != p2.x || origin.y != p2.y {
-				angle = snap(mp.angleTo(origin), 45)
-				canPlace = sys.canPlace(genPlaceTiles(p2))
-
-				if !input.isPressed(input.mouse1) {
-					if canPlace { place(p2) }
-					hasOrigin = false
-				}
-			}
-
-			if input.isJustPressed(input.mouse3) {
-				hasOrigin = false
-			}
-
-			swis := scanSwitches(origin, p2)
-			for sw in swis {
-				canvas.drawLine(0x00ff0099,
-					rail.sysToWorld(p2).add(th.Vf2{1, 1}),
-					rail.sysToWorld(sw.pos).add(th.Vf2{1, 1}), 1)
-			}
-
-			color := th.cyan
-			if !canPlace { color = th.red }
-
-			canvas.drawLine(color,
-				global.cam.toScreen(rail.sysToWorld(origin).add(th.Vf2{1, 1})),
-				global.cam.toScreen(rail.sysToWorld(p2).add(th.Vf2{1, 1})),
-				rail.tileSize)
-		} else {
-			if input.isJustPressed(input.mouse1) {
-				hasOrigin = true
-				origin = mp
-			}
-
-			if input.isJustPressed(input.mouse3) {
-				sw := sys.atSwis(mp)^
-				if sw != null {
-					sw.merge(&sys)
-				}
-
-				t := sys.at(mp)^
-				if t != null {
-					sg := t.parent
-					sg.dir++
-					if sg.dir == 2 {
-						sg.dir = -1
-					}
-				}
-			}
-		}
+		placeMode()
 	case edDel:
-		mp := rail.worldToSys(input.getGlobalMousePos(global.cam)).flr()
 		if input.isJustPressed(input.mouse1) {
 			tl := sys.at(mp)^
 			if tl != null {
-				tl.parent.reduce(&sys, 0, len(tl.parent.tiles))
+				tl.parent.reduce(sys, 0, len(tl.parent.tiles))
 			}
 		}
 	case edDebug:
-		mp := rail.worldToSys(input.getGlobalMousePos(global.cam)).flr()
-
 		if input.isJustPressed(input.mouse1) && sys.atSwis(mp)^ != null {
 			if  np.x == 0 && np.y == 0 {
 				np = mp
 			} else {
-				printf("here\n")
-				debugSegs = append(debugSegs, []^rail.Switch{
+				lvl.pairs = append(lvl.pairs, []^rail.Switch{
 					sys.atSwis(np)^, sys.atSwis(mp)^})
-				agents = append(agents, genDbgAgent())
+				lvl.agents = append(lvl.agents, genDbgAgent())
 				np = th.Vf2{}
 			}
 		}
 	}
+}
 
-	for i,ag in agents {
-		if len(ag.path) != 0 && ag.state != agent.agDone {
-			agents[i].update(th.delta)
-			continue
-		}
-
-		endsi := std.rand() % (len(debugSegs)/2) * 2
-		agents[i].setPath(&sys, debugSegs[endsi], debugSegs[endsi + 1])
-		agents[i].update(th.delta)
-	}
-
+fn draw*() {
 	canvas.drawText(modeNames[mode], th.Vf2{2, 2}, rail.railColor, 2)
 }

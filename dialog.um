@@ -1,0 +1,80 @@
+
+import (
+	"th.um"
+	"rect.um"
+	"input.um"
+	"canvas.um"
+
+	"global.um"
+)
+
+type Dialog* = struct {
+	title: str
+	text: str
+	dm: th.Vf2
+	buttons: []str
+	ctx: interface{}
+	callback: fn(self: ^Dialog, choice: int)
+
+	primaryCol, secondaryCol: uint32
+	
+	cursor: int
+
+	wasPressed: bool
+}
+
+fn (dg: ^Dialog) getRoot(): th.Vf2 {
+	return th.Vf2{(global.cam.w - dg.dm.x)/2, (global.cam.h - dg.dm.y)/2}
+}
+
+fn (dg: ^Dialog) btnRect(index: int): rect.Rect {
+	return rect.mk(1, dg.dm.y - (len(dg.buttons) - index) * 8, dg.dm.x-2, 7)
+}
+
+fn (dg: ^Dialog) reset*() {
+	dg.cursor = 0
+}
+
+fn (dg: ^Dialog) init*() {
+	dg.dm = th.Vf2{global.cam.w * 0.6, global.cam.h*0.6}
+}
+
+fn (dg: ^Dialog) handle*() {
+	root := dg.getRoot()
+	
+	np := input.isPressed(input.mouse1)
+	if np != dg.wasPressed && !np {
+		mp := input.getMousePos()
+		for i,btn in dg.buttons {
+			r := dg.btnRect(i)
+			r.x += root.x
+			r.y += root.y
+			r.w += r.x
+			r.h += r.y
+			if mp.x > r.x && mp.y > r.y && mp.x < r.w && mp.y < r.h {
+				dg.callback(dg, i)
+			}
+		}
+	}
+	dg.wasPressed = np
+}
+
+fn (dg: ^Dialog) draw*() {
+	root := dg.getRoot()
+	
+	canvas.drawRect(dg.secondaryCol, rect.mk(root.x, root.y, dg.dm.x, dg.dm.y))
+
+	canvas.drawText(dg.title, root.add(th.Vf2{1, 1}), dg.primaryCol, 1.4)
+	canvas.drawText(dg.text, root.add(th.Vf2{1, 2 + 1.4 * 7}), dg.primaryCol, 1)
+
+	for i,btn in dg.buttons {
+		tc := dg.secondaryCol
+		bc := dg.primaryCol
+
+		r := dg.btnRect(i)
+		r.x += root.x
+		r.y += root.y
+		canvas.drawRect(bc, r)
+		canvas.drawText(btn, th.Vf2{r.x + 1, r.y + 1}, tc, 1)
+	}
+}

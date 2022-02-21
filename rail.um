@@ -71,6 +71,7 @@ type System* = struct {
 
 const (
 	railColor* = 0xcdcde7ff
+	switchColor* = 0xcdcde7ff
 	tileSize* = 2
 )
 
@@ -202,7 +203,7 @@ fn (sys: ^System) mkSwitch(pos: th.Vf2): ^Switch {
 	sw.segs = []^Segment{}
 	sw.ends = []int{}
 	sw.pos = pos
-	sw.color = railColor
+	sw.color = switchColor
 	sys.swisMap[round(pos.x)][round(pos.y)] = sw
 	return sw
 }
@@ -406,12 +407,13 @@ fn (sys: ^System) canPlace*(tiles: []Tile): bool {
 
 		// check for creating a segment shorter than 3 by splitting
 		// t2's parent
-		if t2.index < 3 || t2.index > len(t2.parent.tiles) - 4 {
+		if (t2.index < 3 || t2.index > len(t2.parent.tiles) - 4) {
 			return false
 		}
 		// t's parent. Here it needs to be one longer, since switches are included
 		// in the tiles array
-		if i < 4 || i > len(tiles) - 5 {
+		if i > 0 && i < len(tiles) - 1 &&
+		   (i < 4 || i > len(tiles) - 5) {
 			return false
 		}
 	}
@@ -666,6 +668,7 @@ fn load*(src: str): System {
 
 			sw.pos.x = std.atoi(sp[1])
 			sw.pos.y = std.atoi(sp[2])
+			sw.color = switchColor
 
 			sw.segs = make([]^Segment, std.atoi(sp[3]))
 			sw.ends = make([]int, std.atoi(sp[3]))
@@ -693,7 +696,7 @@ fn drawRail*(col: uint32, s, e: th.Vf2) {
 	const half = tileSize * 0.5
 	const offs = tileSize * 0.2
 
-	d := e.sub(s)
+	d := th.Vf2{ e.x - s.x, e.y - s.y }
 	mag := d.mag()
 	if mag == 0 {
 		return
@@ -707,16 +710,26 @@ fn drawRail*(col: uint32, s, e: th.Vf2) {
 	e.x += half
 	e.y += half
 
-	off := d.mul(th.Vf2{offs, offs})
-	s = s.sub(off)
-	e = e.add(off)
+	d.x *= offs
+	d.y *= offs
 
-	p1 := s.sub(o)
-	p2 := e.sub(o)
+	s.x += d.x
+	s.y += d.y
+	e.x += d.x
+	e.y += d.y
+
+	p1 := th.Vf2{}
+	p2 := th.Vf2{}
+	p1.x = s.x - o.x
+	p1.y = s.y - o.y
+	p2.x = e.x - o.x
+	p2.y = e.y - o.y
 	canvas.drawLine(col, p1, p2, 0.6)
 
-	p1 = s.add(o)
-	p2 = e.add(o)
+	p1.x = s.x + o.x
+	p1.y = s.y + o.y
+	p2.x = e.x + o.x
+	p2.y = e.y + o.y
 	canvas.drawLine(col, p1, p2, 0.6)
 }
 
@@ -745,14 +758,17 @@ fn (sys: ^System) draw*(cam: rect.Rect) {
 		col := railColor
 
 		s := c.toScreen(sg.swis[0].pos).mul(scaler)
-		diagonal := sg.swis[0].pos.x == sg.tiles[0].pos.x || sg.swis[0].pos.x == sg.tiles[0].pos.x
+		prev := s
+		diagonal := sg.swis[0].pos.x != sg.tiles[0].pos.x && sg.swis[0].pos.y != sg.tiles[0].pos.y
 		for i:=0; i < len(sg.tiles); i++ {
 			p := c.toScreen(sg.tiles[i].pos).mul(scaler)
-			nd := p.x == s.x || p.y == s.y
+			nd := p.x != prev.x && p.y != prev.y
 			if nd != diagonal {
-				drawRail(railColor, s, p)
-				s = p
+				canvas.drawRect(th.cyan, rect.mk(prev.x, prev.y, 1, 1))
+				drawRail(railColor, s, prev)
+				s = prev
 			}
+			prev = p
 			diagonal = nd
 
 			if sg.dir != -1 && (i + 1) % 4 == 0 {
@@ -765,7 +781,7 @@ fn (sys: ^System) draw*(cam: rect.Rect) {
 
 	for sw in sys.swis {
 		p := c.toScreen(sw.pos)
-		col := railColor
+		col := sw.color
 		if sw.occ != 0 {
 			col = th.red
 		}

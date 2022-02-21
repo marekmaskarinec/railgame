@@ -9,3 +9,13 @@ sg end-1 end-2 dir tile-count x1 y1 rot1 x2 y2 rot2 ...
 
 # switch defs
 sw x y number-of-segs index1 end1 index2 end2
+
+
+# level file spec
+time-to-pass
+passes-needed
+number-of-pairs pair1-start pair1-end pair2-start pair2-end
+path-to-starting-rail-file
+
+# agent defs
+ag length maxSpeed accel braking

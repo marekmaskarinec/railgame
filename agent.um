@@ -62,6 +62,10 @@ fn (ag: ^Agent) getBraking(): th.iu {
 }
 
 fn (ag: ^Agent) coordsAt(index: th.fu): th.Vf2 {
+	if trunc(index) >= len(ag.path) {
+		return ag.path[len(ag.path)-1].pos^
+	}
+
 	if trunc(index) == index || trunc(index) + 1 >= len(ag.path) {
 		return ag.path[trunc(index)].pos^
 	}
@@ -82,7 +86,6 @@ fn (ag: ^Agent) sizeOf(index: th.fu): th.fu {
 
 	return ag.path[i].pos.distanceTo(ag.path[i + 1].pos^)
 }
-
 
 fn (ag: ^Agent) markSegs() {
 	b := ag.getBraking()
@@ -208,6 +211,24 @@ fn (ag: ^Agent) setPath*(sys: ^rail.System, from, to: ^rail.Switch) {
 	ag.state = agIdle
 }
 
+fn (ag: ^Agent) reset*() {
+	b := ag.getBraking()
+
+	ag.speed = 0
+	ag.state = agent.agIdle
+
+	if len(ag.path) == 0 {
+		return
+	}
+
+	for i:=trunc(ag.tail);
+	    i < trunc(ag.tail + ag.length + b) && i < len(ag.path);
+	    i++ {
+		ag.path[i].occ^ = 0
+		ag.path[i].occSw^ = 0
+	}
+}
+
 fn (ag: ^Agent) draw() {
 	c := global.cam
 	c.x /= rail.tileSize
@@ -236,7 +257,7 @@ fn (ag: ^Agent) draw() {
 	rail.drawRail(th.green, lp, p)
 }
 
-fn (ag: ^Agent) update*(delta: th.fu) {
+fn (ag: ^Agent) handle*(delta: th.fu) {
 	if len(ag.path) == 0 {
 		return
 	}
