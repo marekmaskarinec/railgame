@@ -19,8 +19,9 @@ const (
 	edPlace
 	edDel
 	edDebug
+	edBlock
 
-	modeNames = [4]str{"OFF", "PLACE", "DELETE", "DEBUG"}
+	modeNames = [5]str{"OFF", "PLACE", "DELETE", "DEBUG", "BLOCK"}
 
 	visColor = 0xdfdf47ff
 )
@@ -128,6 +129,8 @@ fn handleInput*() {
 		mode = edDel
 	} else if input.isJustPressed('g') {
 		mode = edDebug
+	} else if input.isJustPressed('b') {
+		mode = edBlock
 	}
 
 	if input.isJustPressed('s') {
@@ -249,6 +252,25 @@ fn handle*(cam: rect.Rect) {
 				lvl.agents = append(lvl.agents, genDbgAgent())
 				np = th.Vf2{}
 			}
+		}
+	case edBlock:
+		if input.isJustPressed(input.mouse1) {
+			if np.x == 0 && np.y == 0 {
+				np = mp
+			} else {
+				sys.mkBlock(np, mp.sub(np))
+				np = th.Vf2{}
+			}
+		}
+
+		if input.isJustPressed(input.mouse3) {
+			np = th.Vf2{}
+		}
+
+		if np.x != 0 && np.y != 0 {
+			p := cam.toScreen(np.mul(th.Vf2{rail.tileSize, rail.tileSize}))
+			d := cam.toScreen(mp.sub(np).mul(th.Vf2{rail.tileSize, rail.tileSize}))
+			canvas.drawRect(rail.railColor - 0x44, rect.mk(p.x, p.y, d.x, d.y))
 		}
 	}
 }

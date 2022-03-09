@@ -1,0 +1,203 @@
+
+import (
+	"th.um"
+	"std.um"
+	"rect.um"
+	"input.um"
+	"canvas.um"
+	"libs/strings.um"
+
+	"rail.um"
+	"util.um"
+	"game.um"
+	"level.um"
+	"scene.um"
+	"global.um"
+)
+
+type SaveGame* = struct {
+	sysPath: str
+	name: str
+	passed: int
+}
+
+type MenuLevel* = struct {
+	lvl: level.Level
+	choice: int
+	saves: []SaveGame
+}
+
+type Dir* = struct {
+	parent: ^Dir
+	name: str
+	dirs: []^Dir
+	levels: []MenuLevel
+}
+
+var (
+	dir: ^Dir
+	choice: int
+)
+
+fn (ml: ^MenuLevel) draw() {
+	r2 := th.Vf2{global.cam.w/2 + 2, 9}
+	canvas.drawText(ml.lvl.name, r2, rail.railColor, 1)
+	r2.y += 7
+
+	if len(ml.saves) == 0 {
+		canvas.drawText("No saves", r2, rail.railColor, 1)
+		r2.y += 7
+	} else {
+		for i,sv in ml.saves {
+			c := rail.railColor
+			if i == ml.choice {
+				canvas.drawRect(c, rect.mk(r2.x-1, r2.y-1, global.cam.w/2, 7))
+				c = global.bgColor
+			}
+
+			canvas.drawText(sv.name, r2, c, 1)
+			r2.y += 7
+		}	
+	}
+
+	// TODO: new save button
+}
+
+fn (ml: ^MenuLevel) handle() {
+	mp := input.getMousePos()
+	if input.isJustPressed(input.mouse1) && mp.x > global.cam.w/2 {
+		c := trunc(mp.y / 7) - 2
+
+		if c >= 0 && c < len(ml.saves) {
+			sv := ml.saves[c]
+			game.lvl = ml.lvl
+			game.lvl.sys = rail.load(util.readall(sv.sysPath + ".ssv"))
+			scene.change(global.gameId)
+		}
+	}
+}
+
+fn loadSaves*(prefix: str, src: str): []SaveGame {
+	saves := []SaveGame{}
+	
+	lines := strings.split(src, "\n")
+	for l in lines {
+		if len(l) == 0 || l[0] == '#' {
+			continue
+		}
+		sp := strings.split(l, " ")
+		saves = append(saves, SaveGame{
+			name: sp[1],
+			sysPath: prefix + "/" + sp[1],
+			passed: std.atoi(sp[2])})
+	}
+	return saves
+}
+
+// Recursively loads directory
+fn loadDir*(prefix: str, src: str): ^Dir {
+	d := new(Dir)
+	d^ = Dir{
+		dirs: []^Dir{},
+		levels: []MenuLevel{}}
+
+	lines := strings.split(src, "\n")
+	for l in lines {
+		if len(l) == 0 || l[0] == "#" {
+			continue
+		}
+		sp := strings.split(l, " ")
+		
+		if sp[0] == "lvl" {
+			savesDir := prefix + sp[1] + "-saves/"
+			lvl := level.load(prefix, util.readall(prefix + sp[1] + ".ssv"))
+			d.levels = append(d.levels, MenuLevel{
+				lvl: lvl,
+				saves: loadSaves(savesDir, util.readall(savesDir + "saves.ssv"))})
+		} else if sp[0] == "dir" {
+			d2 := loadDir(prefix + sp[1] + "/", util.readall(prefix + sp[1] + "/dirspec.ssv"))
+			d2.name = sp[1]
+			d2.parent = d
+			d.dirs = append(d.dirs, d2)
+		}
+	}
+
+	return d
+}
+
+fn reset*(from: int) {
+
+}
+
+fn handle*() {
+	mp := input.getMousePos()
+	if input.isJustPressed(input.mouse1) && mp.x < global.cam.w/2 {
+		c := trunc(mp.y / 7 - 1)
+
+		if dir.parent != null && c == 0 {
+			dir = dir.parent
+		} else if c >= 0 && c < len(dir.dirs) {
+			dir = dir.dirs[trunc(c)]
+		} else if c >= 0 && c - len(dir.dirs) < len(dir.levels) {
+			choice = trunc(c) - len(dir.dirs)
+		}
+	}
+
+	if choice < len(dir.levels) {
+		dir.levels[choice].handle()
+	}
+}
+
+fn draw*() {
+	// draw folder name
+	row := 1
+	canvas.drawText("Listing of: " + dir.name + "/", th.Vf2{1, row}, rail.railColor, 1)
+	row += 7 + 1
+	
+	// draw double dots
+	if dir.parent != null {
+		canvas.drawText("..", th.Vf2{1, row}, rail.railColor, 1)
+		row += 7
+	}
+
+	// draw directories
+	for i,d in dir.dirs {
+		col := rail.railColor
+		canvas.drawText("DIR " + d.name + "/", th.Vf2{1, row}, col, 1)
+		row += 7
+	}
+
+	// draw levels
+	for i,l in dir.levels {
+		col := rail.railColor
+		if choice == i {
+			col = global.bgColor
+			canvas.drawRect(rail.railColor, rect.mk(0, row - 1, global.cam.w/2, 7))
+		}
+		canvas.drawText("LVL " + l.lvl.name, th.Vf2{1, row}, col, 1)
+		row += 7
+	}
+
+	// draw separating lines
+	canvas.drawRect(rail.railColor, rect.mk(0, 7, global.cam.w, 1))
+	canvas.drawRect(rail.railColor, rect.mk(global.cam.w/2, 8, 1, global.cam.h))
+	
+	if len(dir.levels) == 0 {
+		canvas.drawText("Directory is empty.", th.Vf2{1, row}, rail.railColor, 1)
+		return
+	}
+
+	// draw level preview
+	dir.levels[choice].draw()
+}
+
+fn init*() {
+	dir = loadDir(global.levelDir, util.readall(global.levelDir + "/dirspec.ssv"))
+	dir.name = "root"
+
+	global.chooserId = scene.Scene{
+		name: "level picker",
+		reset: reset,
+		handle: handle,
+		draw: draw}.register()
+}

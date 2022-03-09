@@ -1,8 +1,9 @@
 # comments start with #
-# blank lines are ignored too
+# blank lines are ignored too. There can't be blanks/comments in positional
+# arguments
 
 width height
-number-of-segments number-of-switches
+number-of-segments number-of-switches number-of-blocks
 
 # segment defs followed by its tiles
 sg end-1 end-2 dir tile-count x1 y1 rot1 x2 y2 rot2 ...
@@ -10,12 +11,31 @@ sg end-1 end-2 dir tile-count x1 y1 rot1 x2 y2 rot2 ...
 # switch defs
 sw x y number-of-segs index1 end1 index2 end2
 
+# block defs
+bk x y w h
+
 
 # level file spec
+path-to-starting-rail-file
 time-to-pass
 passes-needed
 number-of-pairs pair1-start pair1-end pair2-start pair2-end
-path-to-starting-rail-file
 
 # agent defs
 ag length maxSpeed accel braking
+
+
+# level directory spec file
+# In a directory there needs to be a file called dirspec.ssv
+# A directory spec file contains list of level files in said directory
+# and names of contained level directories which have to contain a
+# directory spec too.
+lvl level-name
+dir directory-name
+
+
+# save index file
+# In level directory, there will also be a directory for every level with
+# saved games. Generally names ${level-name}-saves/. In that directory there
+# needs to be a save index file named saves.txt.
+sv name challanges-completed 

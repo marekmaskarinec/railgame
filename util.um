@@ -6,6 +6,9 @@ import (
 
 fn readall*(name: str): str {
 		f := std.fopen(name, "r")
+		if f == null {
+			printf("Could not open file %s\n", name)
+		}
     const blockSize = 16
     res := ""
 

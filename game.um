@@ -7,6 +7,7 @@ import (
 	"util.um"
 	"rail.um"
 	"level.um"
+	"scene.um"
 	"editor.um"
 	"global.um"
 )
@@ -28,7 +29,7 @@ var (
 	camPos: th.Vf2
 )
 
-fn reset*() {
+fn reset*(from: int) {
 	camPos = th.Vf2{global.cam.x, global.cam.y}
 	editor.reset()
 	lvl.reset()
@@ -44,10 +45,7 @@ fn snap*(v, s: th.fu): th.fu {
 	return round(v / s) * s
 }
 
-fn init*() {
-	lvl.init()
-	editor.init(&lvl)
-
+fn setUi*() {
 	edUi = ui.mkGrid(3, 1)
 	edUi.elements = []ui.Element{
 		ui.mkSimpleLabel("RUN", th.black, 1),
@@ -158,4 +156,17 @@ fn draw*() {
 		lvl.draw()
 		lvlUi.draw()
 	}
+}
+
+fn init*() {
+	lvl.init()
+	editor.init(&lvl)
+
+	setUi()
+
+	global.gameId = scene.Scene{
+		name: "Game",
+		reset: reset,
+		handle: handle,
+		draw: draw}.register()
 }

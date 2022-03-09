@@ -2,8 +2,11 @@
 import (
 	"th.um"
 	"std.um"
+	"canvas.um"
+	"libs/strings.um"
 
 	"rail.um"
+	"util.um"
 	"agent.um"
 	"dialog.um"
 	"global.um"
@@ -11,6 +14,7 @@ import (
 
 type Level* = struct {
 	sys: rail.System
+	name: str
 	pairs: []^rail.Switch
 	agents: []agent.Agent
 	passesNeeded: int
@@ -30,6 +34,7 @@ const (
 
 fn (lvl: ^Level) repathAgent*(i: int) {
 	lvl.agents[i].setPath(&lvl.sys, lvl.pairs[i * 2], lvl.pairs[i * 2 + 1])
+	printf("repathing %d\n", i)
 }
 
 fn (lvl: ^Level) resetAgents*() {
@@ -46,7 +51,7 @@ fn (lvl: ^Level) test*(): int {
 	const interval = 100
 
 	time := 0
-	for !done {
+	for true {
 		for i,_ag in lvl.agents {
 			ag := &lvl.agents[i]
 
@@ -59,14 +64,12 @@ fn (lvl: ^Level) test*(): int {
 			}
 		}
 	
-		done = true
 		for pc in lvl.passes {
-			if pc < lvl.passesNeeded {
-				done = false
-				break
-			}
+			printf("%s\n", repr(pc))
+			/*if pc => lvl.passesNeeded {
+				return time
+			}*/
 		}
-		time += interval
 	}
 
 	return time
@@ -77,6 +80,7 @@ fn (lvl: ^Level) startSim*() {
 	lvl.simStart = th.time
 	lvl.passes = make([]int, len(lvl.agents))
 	lvl.simTook = 0
+	lvl.resetAgents()
 }
 
 fn (lvl: ^Level) finishSim() {
@@ -103,8 +107,12 @@ fn (lvl: ^Level) reset*() {
 }
 
 fn (lvl: ^Level) init*() {
-	lvl.agents = []agent.Agent{}
-	lvl.pairs = []^rail.Switch{}
+	if len(lvl.agents) == 0 {
+		lvl.agents = []agent.Agent{}
+	}
+	if len(lvl.pairs) == 0 {
+		lvl.pairs = []^rail.Switch{}
+	}
 }
 
 fn (lvl: ^Level) handle*() {
@@ -112,6 +120,8 @@ fn (lvl: ^Level) handle*() {
 		lvl.dg.handle()
 		return
 	}
+
+	canvas.drawText(repr(th.time - lvl.simStart), th.Vf2{1, 1}, rail.railColor, 1)
 
 	for i,_ag in lvl.agents {
 		ag := &lvl.agents[i]
@@ -144,3 +154,38 @@ fn (lvl: ^Level) draw*() {
 	}
 }
 
+fn load*(dir, src: str): Level {
+	lvl := Level{}
+
+	l := strings.split(src, "\n")
+	lvl.name = l[0]
+	lvl.sys = rail.load(util.readall(dir + l[1]))
+	lvl.timeToPass = std.atoi(l[2])
+	lvl.passesNeeded = std.atoi(l[3])
+
+	sp := strings.split(l[4], " ")
+	lvl.pairs = make([]^rail.Switch, std.atoi(sp[0]) * 2)
+	for i:=1; i < len(sp); i++ {
+		lvl.pairs[i-1] = lvl.sys.swis[std.atoi(sp[i])]
+	}
+
+	lvl.agents = []agent.Agent{}
+	for i:=5; i < len(l); i++ {
+		if len(l[i]) == 0 || l[i][0] == '#' {
+			continue
+		}
+
+		sp := strings.split(l[i], " ")
+		if sp[0] != "ag" {
+			continue
+		}
+	
+		lvl.agents = append(lvl.agents, agent.Agent{
+			length: std.atoi(sp[1]),
+			maxSpeed: std.atof(sp[2]),
+			accel: std.atof(sp[3]),
+			braking: std.atof(sp[4])})
+	}
+
+	return lvl
+}

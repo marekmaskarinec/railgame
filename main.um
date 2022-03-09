@@ -10,8 +10,10 @@ import (
 	"util.um"
 	"game.um"
 	"level.um"
+	"scene.um"
 	"editor.um"
 	"global.um"
+	"levelChooser.um"
 )
 
 fn main() {
@@ -19,21 +21,15 @@ fn main() {
 
 	global.cam = rect.mk(96, 54, 192, 108)
 
-	sys := rail.System{}
-	sys.initSize(100, 100)
-	sys.reset()
-
-	game.lvl = level.Level{
-		sys: sys,
-		passesNeeded: 2,
-		timeToPass: 40000}
+	scene.init()
+	levelChooser.init()
 	game.init()
-	game.reset()
+
 	for window.cycle(global.cam) {
 		canvas.drawRect(global.bgColor, rect.Rect{0, 0, global.cam.w, global.cam.h})
 
-		game.handle()
-		game.draw()
+		scene.handle()
+		scene.draw()
 
 		canvas.drawText(repr(1000/util.maxf(th.delta, 1)), th.Vf2{180, 1}, rail.railColor, 1)
 	}
