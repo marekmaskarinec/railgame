@@ -1,6 +1,7 @@
 
 import (
 	"th.um"
+	"ui.um"
 	"std.um"
 	"rect.um"
 	"input.um"
@@ -13,6 +14,7 @@ import (
 	"level.um"
 	"scene.um"
 	"global.um"
+	"itemlist.um"
 )
 
 type SaveGame* = struct {
@@ -23,8 +25,8 @@ type SaveGame* = struct {
 
 type MenuLevel* = struct {
 	lvl: level.Level
-	choice: int
 	saves: []SaveGame
+	ilist: itemlist.ItemList
 }
 
 type Dir* = struct {
@@ -32,11 +34,16 @@ type Dir* = struct {
 	name: str
 	dirs: []^Dir
 	levels: []MenuLevel
+	items: []itemlist.Item
 }
+
+const (
+	fontSize = 0.6
+)
 
 var (
 	dir: ^Dir
-	choice: int
+	lvlList: itemlist.ItemList
 )
 
 fn (ml: ^MenuLevel) draw() {
@@ -44,37 +51,12 @@ fn (ml: ^MenuLevel) draw() {
 	canvas.drawText(ml.lvl.name, r2, rail.railColor, 1)
 	r2.y += 7
 
-	if len(ml.saves) == 0 {
-		canvas.drawText("No saves", r2, rail.railColor, 1)
-		r2.y += 7
-	} else {
-		for i,sv in ml.saves {
-			c := rail.railColor
-			if i == ml.choice {
-				canvas.drawRect(c, rect.mk(r2.x-1, r2.y-1, global.cam.w/2, 7))
-				c = global.bgColor
-			}
-
-			canvas.drawText(sv.name, r2, c, 1)
-			r2.y += 7
-		}	
-	}
-
+	ml.ilist.draw()
 	// TODO: new save button
 }
 
 fn (ml: ^MenuLevel) handle() {
-	mp := input.getMousePos()
-	if input.isJustPressed(input.mouse1) && mp.x > global.cam.w/2 {
-		c := trunc(mp.y / 7) - 2
-
-		if c >= 0 && c < len(ml.saves) {
-			sv := ml.saves[c]
-			game.lvl = ml.lvl
-			game.lvl.sys = rail.load(util.readall(sv.sysPath + ".ssv"))
-			scene.change(global.gameId)
-		}
-	}
+	ml.ilist.handle()
 }
 
 fn loadSaves*(prefix: str, src: str): []SaveGame {
@@ -94,6 +76,40 @@ fn loadSaves*(prefix: str, src: str): []SaveGame {
 	return saves
 }
 
+fn mkMenuLevel(prefix, path: str): MenuLevel {
+	savesDir := prefix + path + "-saves/"
+	lvl := level.load(prefix, util.readall(prefix + path + ".ssv"))
+
+	ml := MenuLevel{
+		lvl: lvl,
+		saves: loadSaves(savesDir, util.readall(savesDir + "saves.ssv"))}
+
+	ml.ilist = itemlist.mk(th.Vf2{global.cam.w/2, 16},
+		th.Vf2{global.cam.w/2, global.cam.h/4},
+		ui.PixelFont{}, fontSize)
+	ml.ilist.scrollBarWidth = 5
+
+	ml.ilist.items = make([]itemlist.Item, len(ml.saves))
+	for i:=0; i < len(ml.saves); i++ {
+		ml.ilist.items[i] = itemlist.Item{text: ml.saves[i].name}
+	}
+
+	ml.ilist.g.ctx = ml
+	ml.ilist.g.onEvent = fn(eventType: th.uu, ctx: interface{}) {
+		if eventType != ui.eventRelease {
+			return
+		}
+		ml := MenuLevel(ctx)
+
+		sv := ml.saves[ml.ilist.selection]
+		game.lvl = ml.lvl
+		game.lvl.sys = rail.load(util.readall(sv.sysPath + ".ssv"))
+		scene.change(global.gameId)
+	}
+
+	return ml
+}
+
 // Recursively loads directory
 fn loadDir*(prefix: str, src: str): ^Dir {
 	d := new(Dir)
@@ -109,17 +125,24 @@ fn loadDir*(prefix: str, src: str): ^Dir {
 		sp := strings.split(l, " ")
 		
 		if sp[0] == "lvl" {
-			savesDir := prefix + sp[1] + "-saves/"
-			lvl := level.load(prefix, util.readall(prefix + sp[1] + ".ssv"))
-			d.levels = append(d.levels, MenuLevel{
-				lvl: lvl,
-				saves: loadSaves(savesDir, util.readall(savesDir + "saves.ssv"))})
+			d.levels = append(d.levels, mkMenuLevel(prefix, sp[1]))
 		} else if sp[0] == "dir" {
 			d2 := loadDir(prefix + sp[1] + "/", util.readall(prefix + sp[1] + "/dirspec.ssv"))
 			d2.name = sp[1]
 			d2.parent = d
+			d2.items = append([]itemlist.Item{itemlist.Item{text: ".."}}, d2.items)
 			d.dirs = append(d.dirs, d2)
 		}
+	}
+
+	d.items = []itemlist.Item{}
+
+	for dir in d.dirs {
+		d.items = append(d.items, itemlist.Item{text: "DIR " + dir.name})
+	}
+
+	for lvl in d.levels {
+		d.items = append(d.items, itemlist.Item{text: "LVL " + lvl.lvl.name})
 	}
 
 	return d
@@ -130,21 +153,12 @@ fn reset*(from: int) {
 }
 
 fn handle*() {
-	mp := input.getMousePos()
-	if input.isJustPressed(input.mouse1) && mp.x < global.cam.w/2 {
-		c := trunc(mp.y / 7 - 1)
-
-		if dir.parent != null && c == 0 {
-			dir = dir.parent
-		} else if c >= 0 && c < len(dir.dirs) {
-			dir = dir.dirs[trunc(c)]
-		} else if c >= 0 && c - len(dir.dirs) < len(dir.levels) {
-			choice = trunc(c) - len(dir.dirs)
-		}
-	}
-
-	if choice < len(dir.levels) {
-		dir.levels[choice].handle()
+	lvlList.handle()
+	c := lvlList.selection
+	if dir.parent != null { c-- }
+	c -= len(dir.dirs)
+	if c >= 0 {
+		dir.levels[c].handle()
 	}
 }
 
@@ -153,42 +167,14 @@ fn draw*() {
 	row := 1
 	canvas.drawText("Listing of: " + dir.name + "/", th.Vf2{1, row}, rail.railColor, 1)
 	row += 7 + 1
-	
-	// draw double dots
-	if dir.parent != null {
-		canvas.drawText("..", th.Vf2{1, row}, rail.railColor, 1)
-		row += 7
-	}
 
-	// draw directories
-	for i,d in dir.dirs {
-		col := rail.railColor
-		canvas.drawText("DIR " + d.name + "/", th.Vf2{1, row}, col, 1)
-		row += 7
+	lvlList.draw()
+	c := lvlList.selection
+	if dir.parent != null { c-- }
+	c -= len(dir.dirs)
+	if c >= 0 {
+		dir.levels[c].draw()
 	}
-
-	// draw levels
-	for i,l in dir.levels {
-		col := rail.railColor
-		if choice == i {
-			col = global.bgColor
-			canvas.drawRect(rail.railColor, rect.mk(0, row - 1, global.cam.w/2, 7))
-		}
-		canvas.drawText("LVL " + l.lvl.name, th.Vf2{1, row}, col, 1)
-		row += 7
-	}
-
-	// draw separating lines
-	canvas.drawRect(rail.railColor, rect.mk(0, 7, global.cam.w, 1))
-	canvas.drawRect(rail.railColor, rect.mk(global.cam.w/2, 8, 1, global.cam.h))
-	
-	if len(dir.levels) == 0 {
-		canvas.drawText("Directory is empty.", th.Vf2{1, row}, rail.railColor, 1)
-		return
-	}
-
-	// draw level preview
-	dir.levels[choice].draw()
 }
 
 fn init*() {
@@ -200,4 +186,27 @@ fn init*() {
 		reset: reset,
 		handle: handle,
 		draw: draw}.register()
+	lvlList = itemlist.mk(th.Vf2{0, 8}, th.Vf2{global.cam.w/2, global.cam.h-7},
+		ui.PixelFont{}, fontSize)
+	lvlList.scrollBarWidth = 5
+	lvlList.items = dir.items
+	lvlList.clickToSelect = true
+
+	lvlList.g.onEvent = fn(eventType: th.uu, ctx: interface{}) {
+		if eventType != ui.eventRelease {
+			return
+		}
+
+		c := lvlList.selection
+		if dir.parent != null { c-- }
+		if dir.parent != null && lvlList.selection == 0 {
+			dir = dir.parent
+			lvlList.items = dir.items
+			lvlList.selection = -1
+		} else if c < len(dir.dirs) && c >= 0 {
+			dir = dir.dirs[c]	
+			lvlList.items = dir.items
+			lvlList.selection = -1
+		}
+	}
 }

@@ -48,15 +48,15 @@ fn snap*(v, s: th.fu): th.fu {
 fn setUi*() {
 	edUi = ui.mkGrid(3, 1)
 	edUi.elements = []ui.Element{
-		ui.mkSimpleLabel("RUN", th.black, 1),
-		ui.mkSimpleLabel("TEST", th.black, 1),
-		ui.mkSimpleLabel("", th.black, 1)}
+		ui.mkLabel(ui.PixelFont{}, "RUN", th.black, 1),
+		ui.mkLabel(ui.PixelFont{}, "TEST", th.black, 1),
+		ui.mkLabel(ui.PixelFont{}, "", th.black, 1)}
 	edUi.border = 2
 	edUi.g.t = th.Transform{
 		s: th.Vf2{90, 15},
 		p: th.Vf2{0, global.cam.h-15}}
 	
-	btn := ^ui.SimpleLabel(edUi.elements[0])
+	btn := ^ui.Label(edUi.elements[0])
 	btn.center = true
 	btn.bgColor = rail.railColor
 	btn.g.ctx = btn
@@ -68,7 +68,7 @@ fn setUi*() {
 		launchTest()
 	}
 
-	btn = ^ui.SimpleLabel(edUi.elements[1])
+	btn = ^ui.Label(edUi.elements[1])
 	btn.center = true
 	btn.bgColor = rail.railColor
 	btn.g.ctx = btn
@@ -78,7 +78,7 @@ fn setUi*() {
 		}
 
 		lvl.reset()
-		ui.SimpleLabel(edUi.elements[2]).text = "passed in: " + repr(lvl.test())
+		ui.Label(edUi.elements[2]).text = "passed in: " + repr(lvl.test())
 	}
 	btn.g.grid(1, 0)
 
@@ -86,14 +86,14 @@ fn setUi*() {
 
 	lvlUi = ui.mkGrid(2, 1)
 	lvlUi.elements = []ui.Element{
-		ui.mkSimpleLabel("BACK", th.black, 1),
-		ui.mkSimpleLabel("SKIP", th.black, 1)}
+		ui.mkLabel(ui.PixelFont{}, "BACK", th.black, 1),
+		ui.mkLabel(ui.PixelFont{}, "SKIP", th.black, 1)}
 	lvlUi.border = 2
 	lvlUi.g.t = th.Transform{
 		s: th.Vf2{60, 15},
 		p: th.Vf2{0, global.cam.h - 15}}
 	
-	btn = ^ui.SimpleLabel(lvlUi.elements[0])
+	btn = ^ui.Label(lvlUi.elements[0])
 	btn.center = true
 	btn.bgColor = rail.railColor
 	btn.g.ctx = btn
@@ -105,7 +105,7 @@ fn setUi*() {
 		mode = mEditing
 	}
 
-	btn = ^ui.SimpleLabel(lvlUi.elements[1])
+	btn = ^ui.Label(lvlUi.elements[1])
 	btn.center = true
 	btn.bgColor = rail.railColor
 	btn.g.ctx = btn
