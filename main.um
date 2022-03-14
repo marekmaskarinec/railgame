@@ -1,6 +1,7 @@
 
 import (
 	"th.um"
+	"std.um"
 	"rect.um"
 	"input.um"
 	"canvas.um"
@@ -31,7 +32,5 @@ fn main() {
 
 		scene.handle()
 		scene.draw()
-
-		canvas.drawText(repr(1000/util.maxf(th.delta, 1)), th.Vf2{180, 1}, rail.railColor, 1)
 	}
 }

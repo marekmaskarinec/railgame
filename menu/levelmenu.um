@@ -46,6 +46,16 @@ var (
 	lvlList: itemlist.ItemList
 )
 
+fn getLevel(): ^MenuLevel {
+	c := lvlList.selection
+	if dir.parent != null { c-- }
+	c -= len(dir.dirs)
+	if c >= 0 {
+		return &dir.levels[c]
+	}
+	return null
+}
+
 fn (ml: ^MenuLevel) draw() {
 	r2 := th.Vf2{global.cam.w/2 + 2, 9}
 	global.fontBold.draw(ml.lvl.name, r2, rail.railColor, 1)
@@ -99,8 +109,8 @@ fn mkMenuLevel(prefix, path: str): MenuLevel {
 		if eventType != ui.eventRelease {
 			return
 		}
-		ml := MenuLevel(ctx)
 
+		ml := getLevel()
 		sv := ml.saves[ml.ilist.selection]
 		game.lvl = ml.lvl
 		game.lvl.sys = rail.load(util.readall(sv.sysPath + ".ssv"))
@@ -154,11 +164,9 @@ fn reset*(from: int) {
 
 fn handle*() {
 	lvlList.handle()
-	c := lvlList.selection
-	if dir.parent != null { c-- }
-	c -= len(dir.dirs)
-	if c >= 0 {
-		dir.levels[c].handle()
+	ml := getLevel()
+	if ml != null {
+		ml.handle()
 	}
 }
 
@@ -169,11 +177,9 @@ fn draw*() {
 	row += 7 + 1
 
 	lvlList.draw()
-	c := lvlList.selection
-	if dir.parent != null { c-- }
-	c -= len(dir.dirs)
-	if c >= 0 {
-		dir.levels[c].draw()
+	ml := getLevel()
+	if ml != null {
+		ml.draw()
 	}
 }
 

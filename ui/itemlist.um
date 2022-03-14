@@ -117,15 +117,20 @@ fn (il: ^ItemList) handle*() {
 			il.offset++
 		}
 
-		//printf("!%s || %s\n", repr(il.clickToSelect), repr(input.isJustPressed(input.mouse1)))
 		if !il.clickToSelect || input.isJustPressed(input.mouse1) {
 			il.selection = trunc((mp.y - il.g.t.p.y) / il.itemHeight() + il.offset)
 			il.g.onEvent(ui.eventHover, il.g.ctx)
 		}
 
 		if input.isPressed(input.mouse1) {
-			il.g.pressed = true
+			if il.g.pressed {
+				il.g.onEvent(ui.eventPress, il.g.ctx)
+			} else {
+				il.g.onEvent(ui.eventJustPress, il.g.ctx)
+				il.g.pressed = true
+			}
 		} else if il.g.pressed {
+			printf("%d\n", il.selection)
 			il.g.onEvent(ui.eventRelease, il.g.ctx)
 			il.g.pressed = false
 		}
