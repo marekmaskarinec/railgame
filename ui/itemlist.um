@@ -32,15 +32,15 @@ type ItemList* = struct {
 	scrollOffset: th.fu
 }
 
-fn (i: ^Item) draw(pos, dm: th.Vf2, fg, bg: uint32, fs: th.fu) {
+fn (i: ^Item) draw(ren: ui.TextRenderer, pos, dm: th.Vf2, fg, bg: uint32, fs: th.fu) {
 	canvas.drawRect(bg, rect.mk(pos.x, pos.y, dm.x, dm.y))
-	x := 1 * fs
+	pos.x += 1 * fs
 	if i.img.handle != 0 {
 		i.img.draw(th.Transform{p: pos, s: th.Vf2{1, 1}}, th.white)
-		x := i.img.getDims().x
+		pos.x += i.img.getDims().x
 	}
 
-	canvas.drawText(i.text, th.Vf2{pos.x + x, pos.y + 1 * fs}, fg, fs)
+	ren.draw(i.text, pos, fg, fs)
 }
 
 fn (il: ^ItemList) get*(): ^ui.Generic {
@@ -163,10 +163,10 @@ fn (il: ^ItemList) draw*() {
 			bg = rail.railColor
 		}
 
-		il.items[i].draw(th.Vf2{p.x + il.scrollBarWidth, p.y},
+		il.items[i].draw(il.renderer, th.Vf2{p.x + il.scrollBarWidth, p.y},
 			th.Vf2{il.g.t.s.x - il.scrollBarWidth, il.itemHeight()},
 			fg, bg, il.fontSize)
-		p.y += 7 * il.fontSize
+		p.y += il.itemHeight()
 	}
 
 	il.scrollBarWidth = sbw

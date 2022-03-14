@@ -6,14 +6,14 @@ import (
 	"canvas.um"
 	"window.um"
 
-	"rail.um"
 	"util.um"
-	"game.um"
-	"level.um"
 	"scene.um"
-	"editor.um"
 	"global.um"
-	"levelChooser.um"
+	"rail/rail.um"
+	"game/game.um"
+	"game/level.um"
+	"game/editor.um"
+	"menu/levelmenu.um"
 )
 
 fn main() {
@@ -21,8 +21,9 @@ fn main() {
 
 	global.cam = rect.mk(96, 54, 192, 108)
 
+	global.init()
 	scene.init()
-	levelChooser.init()
+	levelmenu.init()
 	game.init()
 
 	for window.cycle(global.cam) {

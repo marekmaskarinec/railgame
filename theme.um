@@ -1,4 +1,0 @@
-
-type Theme* = struct {
-	bg, fg, hover, click: uint32
-}

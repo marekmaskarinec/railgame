@@ -3,13 +3,13 @@ import (
 	"th.um"
 	"std.um"
 	"canvas.um"
-	"libs/strings.um"
+	"../libs/strings.um"
 
-	"rail.um"
-	"util.um"
-	"agent.um"
-	"dialog.um"
-	"global.um"
+	"../util.um"
+	"../global.um"
+	"../ui/dialog.um"
+	"../rail/rail.um"
+	"../rail/agent.um"
 )
 
 type Level* = struct {

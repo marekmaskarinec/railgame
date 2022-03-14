@@ -1,11 +1,12 @@
 
 import (
 	"th.um"
+	"font.um"
 	"rect.um"
 )
 
 const (
-	NONE* = -1
+	fontScale* = 100
 )
 
 var (
@@ -17,4 +18,12 @@ var (
 	levelDir*: str = "levels/"
 
 	chooserId*, gameId*: int
+
+	fontReg*: font.Cached
+	fontBold*: font.Cached
 )
+
+fn init*() {
+	fontReg = font.mkCached(font.load("montserrat/regular.ttf"), fontScale)
+	fontBold = font.mkCached(font.load("montserrat/bold.ttf"), fontScale)
+}

@@ -4,12 +4,12 @@ import (
 	"std.um"
 	"rect.um"
 	"canvas.um"
-	"libs/list.um"
-	"libs/strings.um"
-	"umka-lang/import/map.um"
+	"../libs/list.um"
+	"../libs/strings.um"
+	"../umka-lang/import/map.um"
 
-	"util.um"
-	"global.um"
+	"../util.um"
+	"../global.um"
 )
 
 type (

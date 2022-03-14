@@ -7,11 +7,11 @@ import (
 	"input.um"
 	"canvas.um"
 
-	"rail.um"
-	"util.um"
-	"agent.um"
 	"level.um"
-	"global.um"
+	"../util.um"
+	"../global.um"
+	"../rail/rail.um"
+	"../rail/agent.um"
 )
 
 const (

@@ -6,15 +6,15 @@ import (
 	"rect.um"
 	"input.um"
 	"canvas.um"
-	"libs/strings.um"
+	"../libs/strings.um"
 
-	"rail.um"
-	"util.um"
-	"game.um"
-	"level.um"
-	"scene.um"
-	"global.um"
-	"itemlist.um"
+	"../util.um"
+	"../scene.um"
+	"../global.um"
+	"../rail/rail.um"
+	"../game/game.um"
+	"../game/level.um"
+	"../ui/itemlist.um"
 )
 
 type SaveGame* = struct {
@@ -38,7 +38,7 @@ type Dir* = struct {
 }
 
 const (
-	fontSize = 0.6
+	fontSize = 0.8
 )
 
 var (
@@ -48,7 +48,7 @@ var (
 
 fn (ml: ^MenuLevel) draw() {
 	r2 := th.Vf2{global.cam.w/2 + 2, 9}
-	canvas.drawText(ml.lvl.name, r2, rail.railColor, 1)
+	global.fontBold.draw(ml.lvl.name, r2, rail.railColor, 1)
 	r2.y += 7
 
 	ml.ilist.draw()
@@ -84,9 +84,9 @@ fn mkMenuLevel(prefix, path: str): MenuLevel {
 		lvl: lvl,
 		saves: loadSaves(savesDir, util.readall(savesDir + "saves.ssv"))}
 
-	ml.ilist = itemlist.mk(th.Vf2{global.cam.w/2, 16},
+	ml.ilist = itemlist.mk(th.Vf2{global.cam.w/2 + 1, 16},
 		th.Vf2{global.cam.w/2, global.cam.h/4},
-		ui.PixelFont{}, fontSize)
+		&global.fontReg, fontSize)
 	ml.ilist.scrollBarWidth = 5
 
 	ml.ilist.items = make([]itemlist.Item, len(ml.saves))
@@ -165,7 +165,7 @@ fn handle*() {
 fn draw*() {
 	// draw folder name
 	row := 1
-	canvas.drawText("Listing of: " + dir.name + "/", th.Vf2{1, row}, rail.railColor, 1)
+	global.fontBold.draw("Listing of: " + dir.name + "/", th.Vf2{1, row}, rail.railColor, 1)
 	row += 7 + 1
 
 	lvlList.draw()
@@ -187,7 +187,7 @@ fn init*() {
 		handle: handle,
 		draw: draw}.register()
 	lvlList = itemlist.mk(th.Vf2{0, 8}, th.Vf2{global.cam.w/2, global.cam.h-7},
-		ui.PixelFont{}, fontSize)
+		&global.fontReg, fontSize)
 	lvlList.scrollBarWidth = 5
 	lvlList.items = dir.items
 	lvlList.clickToSelect = true
