@@ -2,10 +2,12 @@
 import (
 	"th.um"
 	"std.um"
+	"signal.um"
 	"canvas.um"
 	"../libs/strings.um"
 
 	"../util.um"
+	"../scene.um"
 	"../global.um"
 	"../ui/dialog.um"
 	"../rail/rail.um"
@@ -85,16 +87,7 @@ fn (lvl: ^Level) startSim*() {
 
 fn (lvl: ^Level) finishSim() {
 	lvl.simDone = true
-	lvl.dg = dialog.Dialog{
-		title: "LEVEL PASSED",
-		text: "TOOK " + repr(lvl.simTook) + "ms",
-		buttons: []str{"MENU", "EDITOR"},
-		callback: fn(self: ^dialog.Dialog, choice: int) {
-			printf("dialog result: %d\n", choice)
-		},
-		primaryCol: global.bgColor,
-		secondaryCol: rail.railColor}
-	lvl.dg.init()
+	signal.emit("sim_done", null)
 }
 
 fn (lvl: ^Level) skipSim*() {
@@ -121,7 +114,7 @@ fn (lvl: ^Level) handle*() {
 		return
 	}
 
-	canvas.drawText(repr(th.time - lvl.simStart), th.Vf2{1, 1}, rail.railColor, 1)
+	canvas.drawText(repr(th.time - lvl.simStart), th.Vf2{1, 1}, global.railColor, 1)
 
 	for i,_ag in lvl.agents {
 		ag := &lvl.agents[i]

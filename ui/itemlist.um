@@ -142,7 +142,7 @@ fn (il: ^ItemList) handle*() {
 fn (il: ^ItemList) drawScrollBar() {
 	iw := real(il.limit)/len(il.items) * il.itemHeight()
 
-	canvas.drawRect(rail.railColor, rect.mk(
+	canvas.drawRect(global.railColor, rect.mk(
 		il.g.t.p.x, il.g.t.p.y + iw * il.offset,
 		il.scrollBarWidth, iw * il.limit))	
 }
@@ -161,11 +161,11 @@ fn (il: ^ItemList) draw*() {
 
 	p := il.g.t.p
 	for i:=il.offset; i < il.offset + il.limit && i < len(il.items); i++ {
-		fg := rail.railColor
+		fg := global.railColor
 		bg := global.bgColor
 		if i == il.selection {
 			fg = global.bgColor
-			bg = rail.railColor
+			bg = global.railColor
 		}
 
 		il.items[i].draw(il.renderer, th.Vf2{p.x + il.scrollBarWidth, p.y},

@@ -14,6 +14,7 @@ var (
 	cam*: rect.Rect
 
 	bgColor*: uint32 = 0x604a99ff
+	railColor*: uint32 = 0xcdcde7ff
 	
 	levelDir*: str = "levels/"
 

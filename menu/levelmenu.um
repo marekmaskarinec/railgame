@@ -25,15 +25,18 @@ type SaveGame* = struct {
 
 type MenuLevel* = struct {
 	lvl: level.Level
+	defaultSys: rail.System
 	saves: []SaveGame
+	saveDir: str
 	ilist: itemlist.ItemList
+	newBtn: ^ui.Label
 }
 
 type Dir* = struct {
 	parent: ^Dir
 	name: str
 	dirs: []^Dir
-	levels: []MenuLevel
+	levels: []^MenuLevel
 	items: []itemlist.Item
 }
 
@@ -51,22 +54,23 @@ fn getLevel(): ^MenuLevel {
 	if dir.parent != null { c-- }
 	c -= len(dir.dirs)
 	if c >= 0 {
-		return &dir.levels[c]
+		return dir.levels[c]
 	}
 	return null
 }
 
 fn (ml: ^MenuLevel) draw() {
 	r2 := th.Vf2{global.cam.w/2 + 2, 9}
-	global.fontBold.draw(ml.lvl.name, r2, rail.railColor, 1)
+	global.fontBold.draw(ml.lvl.name, r2, global.railColor, 1)
 	r2.y += 7
 
 	ml.ilist.draw()
-	// TODO: new save button
+	ml.newBtn.draw()
 }
 
 fn (ml: ^MenuLevel) handle() {
 	ml.ilist.handle()
+	ml.newBtn.handle()
 }
 
 fn loadSaves*(prefix: str, src: str): []SaveGame {
@@ -80,19 +84,28 @@ fn loadSaves*(prefix: str, src: str): []SaveGame {
 		sp := strings.split(l, " ")
 		saves = append(saves, SaveGame{
 			name: sp[1],
-			sysPath: prefix + "/" + sp[1],
-			passed: std.atoi(sp[2])})
+			sysPath: prefix + "/" + sp[1]})
 	}
 	return saves
 }
 
-fn mkMenuLevel(prefix, path: str): MenuLevel {
+fn exportSaves*(saves: []SaveGame): str {
+	out := ""
+	for sv in saves {
+		out += "sv " + sv.name + "\n"
+	}
+	return out
+}
+
+fn mkMenuLevel(prefix, path: str): ^MenuLevel {
 	savesDir := prefix + path + "-saves/"
 	lvl := level.load(prefix, util.readall(prefix + path + ".ssv"))
 
-	ml := MenuLevel{
+	ml := new(MenuLevel)
+	ml^ = MenuLevel{
 		lvl: lvl,
-		saves: loadSaves(savesDir, util.readall(savesDir + "saves.ssv"))}
+		saves: loadSaves(savesDir, util.readall(savesDir + "saves.ssv")),
+		saveDir: savesDir}
 
 	ml.ilist = itemlist.mk(th.Vf2{global.cam.w/2 + 1, 16},
 		th.Vf2{global.cam.w/2, global.cam.h/4},
@@ -113,9 +126,35 @@ fn mkMenuLevel(prefix, path: str): MenuLevel {
 		ml := getLevel()
 		sv := ml.saves[ml.ilist.selection]
 		game.lvl = ml.lvl
+		game.savePath = sv.sysPath + ".ssv"
 		game.lvl.sys = rail.load(util.readall(sv.sysPath + ".ssv"))
 		scene.change(global.gameId)
 	}
+
+	ml.newBtn = new(ui.Label)
+	ml.newBtn^ = ui.mkLabel(global.fontReg, "NEW SAVE", th.black, 1)
+	ml.newBtn.g.t.p = th.Vf2{global.cam.w/2 + 2, global.cam.h-12}
+	ml.newBtn.g.t.s = th.Vf2{global.cam.w/2 - 4, 10}
+	util.initBtn(ml.newBtn, th.Vf2{}, fn(eventType: th.uu, ctx: interface{}) {
+		if eventType != ui.eventRelease {
+			return
+		}
+		ml := ^MenuLevel(ctx)
+
+		name := "new_save_" + std.itoa(len(ml.saves))
+		ml.saves = append(ml.saves, SaveGame{
+			sysPath: ml.saveDir + "/" + name,
+			name: name})
+		ml.ilist.items = append(ml.ilist.items, itemlist.Item{text: name})
+		f := std.fopen(ml.saveDir + "/" + name + ".ssv", "w")
+		fprintf(f, "%s\n", ml.lvl.sys.export())
+		std.fclose(f)
+
+		f = std.fopen(ml.saveDir + "/saves.ssv", "w")
+		fprintf(f, "%s\n", exportSaves(ml.saves))
+		std.fclose(f)
+	})
+	ml.newBtn.g.ctx = ml
 
 	return ml
 }
@@ -125,7 +164,7 @@ fn loadDir*(prefix: str, src: str): ^Dir {
 	d := new(Dir)
 	d^ = Dir{
 		dirs: []^Dir{},
-		levels: []MenuLevel{}}
+		levels: []^MenuLevel{}}
 
 	lines := strings.split(src, "\n")
 	for l in lines {
@@ -173,7 +212,7 @@ fn handle*() {
 fn draw*() {
 	// draw folder name
 	row := 1
-	global.fontBold.draw("Listing of: " + dir.name + "/", th.Vf2{1, row}, rail.railColor, 1)
+	global.fontBold.draw("Listing of: " + dir.name + "/", th.Vf2{1, row}, global.railColor, 1)
 	row += 7 + 1
 
 	lvlList.draw()

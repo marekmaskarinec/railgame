@@ -79,7 +79,6 @@ type System* = struct {
 }
 
 const (
-	railColor* = 0xcdcde7ff
 	switchColor* = 0xcdcde7ff
 	tileSize* = 2
 )
@@ -259,7 +258,7 @@ fn (sg: ^Segment) rebuildTiles(sys: ^System) {
 	for i, t in sg.tiles {
 		sg.tiles[i].index = i
 		sg.tiles[i].parent = sg
-		sg.tiles[i].color = railColor
+		sg.tiles[i].color = global.railColor
 		sys.at(sg.tiles[i].pos)^ = &sg.tiles[i]
 	}
 }
@@ -520,7 +519,7 @@ fn (sw: ^Switch) merge*(sys: ^System): ^Segment {
 	sg1 := sw.segs[0]
 	sg2 := sw.segs[1]
 
-	swt := Tile{sg1, len(sg1.tiles), sg2.tiles[0].rotation, sw.pos, railColor}
+	swt := Tile{sg1, len(sg1.tiles), sg2.tiles[0].rotation, sw.pos, global.railColor}
 
 	if sw.ends[0] == 0 {
 		if sw.ends[1] == 0 {
@@ -825,7 +824,7 @@ fn (sys: ^System) draw*(cam: rect.Rect) {
 	scaler := th.Vf2{tileSize, tileSize}
 
 	for sg in sys.segs {
-		col := railColor
+		col := global.railColor
 
 		s := c.toScreen(sg.swis[0].pos).mul(scaler)
 		prev := s
@@ -835,7 +834,7 @@ fn (sys: ^System) draw*(cam: rect.Rect) {
 			nd := p.x != prev.x && p.y != prev.y
 			if nd != diagonal {
 				canvas.drawRect(th.cyan, rect.mk(prev.x, prev.y, 1, 1))
-				drawRail(railColor, s, prev)
+				drawRail(global.railColor, s, prev)
 				s = prev
 			}
 			prev = p
@@ -843,10 +842,10 @@ fn (sys: ^System) draw*(cam: rect.Rect) {
 
 			if sg.dir != -1 && (i + 1) % 4 == 0 {
 				ap := p.add(th.Vf2{tileSize/2, tileSize/2})
-				drawArrow(railColor, ap, sg.tiles[i].pos.angleTo(sg.swis[sg.dir].pos))
+				drawArrow(global.railColor, ap, sg.tiles[i].pos.angleTo(sg.swis[sg.dir].pos))
 			}
 		}
-		drawRail(railColor, s, c.toScreen(sg.swis[1].pos).mul(scaler))
+		drawRail(global.railColor, s, c.toScreen(sg.swis[1].pos).mul(scaler))
 	}
 
 	for sw in sys.swis {
@@ -865,12 +864,12 @@ fn (sys: ^System) draw*(cam: rect.Rect) {
 		p := c.toScreen(bk.p)
 		for x:=trunc(p.x); x < p.x + bk.s.x; x++ {
 			for y:=trunc(p.y); y < p.y + bk.s.y; y++ {
-      	canvas.drawLine(rail.railColor,
+      	canvas.drawLine(global.railColor,
 					th.Vf2{x * cellSize, y * cellSize},
 					th.Vf2{(x + 1) * cellSize, (y + 1) * cellSize}, 0.4)
 			}
 		}
-		//canvas.drawRect(rail.railColor, rect.mk(
+		//canvas.drawRect(global.global.railColor, rect.mk(
 		//	p.x * cellSize, p.y * cellSize, bk.s.x * cellSize, bk.s.y * cellSize))
 	}
 }

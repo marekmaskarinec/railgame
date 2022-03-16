@@ -38,4 +38,4 @@ dir directory-name
 # In level directory, there will also be a directory for every level with
 # saved games. Generally names ${level-name}-saves/. In that directory there
 # needs to be a save index file named saves.txt.
-sv name challanges-completed 
+sv name

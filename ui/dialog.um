@@ -1,6 +1,7 @@
 
 import (
 	"th.um"
+	"ui.um"
 	"rect.um"
 	"input.um"
 	"canvas.um"
@@ -15,6 +16,8 @@ type Dialog* = struct {
 	buttons: []str
 	ctx: interface{}
 	callback: fn(self: ^Dialog, choice: int)
+	ren: ui.TextRenderer
+	boldRen: ui.TextRenderer
 
 	primaryCol, secondaryCol: uint32
 	
@@ -37,6 +40,8 @@ fn (dg: ^Dialog) reset*() {
 
 fn (dg: ^Dialog) init*() {
 	dg.dm = th.Vf2{global.cam.w * 0.6, global.cam.h*0.6}
+	dg.ren = global.fontReg
+	dg.boldRen = global.fontBold
 }
 
 fn (dg: ^Dialog) handle*() {
@@ -64,8 +69,8 @@ fn (dg: ^Dialog) draw*() {
 	
 	canvas.drawRect(dg.secondaryCol, rect.mk(root.x, root.y, dg.dm.x, dg.dm.y))
 
-	canvas.drawText(dg.title, root.add(th.Vf2{1, 1}), dg.primaryCol, 1.4)
-	canvas.drawText(dg.text, root.add(th.Vf2{1, 2 + 1.4 * 7}), dg.primaryCol, 1)
+	dg.boldRen.draw(dg.title, root.add(th.Vf2{1, 1}), dg.primaryCol, 1.4)
+	dg.ren.draw(dg.text, root.add(th.Vf2{1, 2 + 1.4 * 7}), dg.primaryCol, 1)
 
 	for i,btn in dg.buttons {
 		tc := dg.secondaryCol
@@ -75,6 +80,6 @@ fn (dg: ^Dialog) draw*() {
 		r.x += root.x
 		r.y += root.y
 		canvas.drawRect(bc, r)
-		canvas.drawText(btn, th.Vf2{r.x + 1, r.y + 1}, tc, 1)
+		dg.ren.draw(btn, th.Vf2{r.x + 1, r.y + 1}, tc, 1)
 	}
 }

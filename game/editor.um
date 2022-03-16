@@ -106,7 +106,7 @@ fn genPlaceTiles(p2: th.Vf2): []rail.Tile {
 	for i, t in tiles {
 		tiles[i].pos = p
 		tiles[i].rotation = a
-		tiles[i].color = rail.railColor
+		tiles[i].color = global.railColor
 		p = p.add(n)
 	}
 
@@ -188,7 +188,7 @@ fn placeMode*() {
 				rail.sysToWorld(sw.pos).add(th.Vf2{1, 1}), 1)
 		}
 
-		color := rail.railColor 
+		color := global.railColor 
 		if !canPlace { color = th.red }
 
 		canvas.drawLine(color,
@@ -270,11 +270,11 @@ fn handle*(cam: rect.Rect) {
 		if np.x != 0 && np.y != 0 {
 			p := cam.toScreen(np.mul(th.Vf2{rail.tileSize, rail.tileSize}))
 			d := cam.toScreen(mp.sub(np).mul(th.Vf2{rail.tileSize, rail.tileSize}))
-			canvas.drawRect(rail.railColor - 0x44, rect.mk(p.x, p.y, d.x, d.y))
+			canvas.drawRect(global.railColor - 0x44, rect.mk(p.x, p.y, d.x, d.y))
 		}
 	}
 }
 
 fn draw*() {
-	canvas.drawText(modeNames[mode], th.Vf2{2, 2}, rail.railColor, 2)
+	global.fontBold.draw(modeNames[mode], th.Vf2{2, 2}, global.railColor, 2)
 }

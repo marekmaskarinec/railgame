@@ -2,13 +2,16 @@
 import (
 	"th.um"
 	"ui.um"
+	"std.um"
 	"input.um"
+	"signal.um"
 
 	"level.um"
 	"scene.um"
 	"editor.um"
 	"global.um"
 	"../util.um"
+	"../ui/dialog.um"
 	"../rail/rail.um"
 )
 
@@ -27,6 +30,8 @@ var (
 	lvlUi: ui.Grid
 
 	camPos: th.Vf2
+
+	savePath*: str
 )
 
 fn reset*(from: int) {
@@ -39,6 +44,24 @@ fn launchTest() {
 	lvl.reset()
 	lvl.startSim()
 	mode = mRunning
+
+	signal.register("sim_done", fn(ctx: interface{}) {
+		lvl.dg = dialog.Dialog{
+			title: "LEVEL PASSED",
+			text: "TOOK " + repr(lvl.simTook) + "ms",
+			buttons: []str{"MENU", "EDITOR"},
+			callback: fn(self: ^dialog.Dialog, choice: int) {
+				switch choice {
+				case 0:
+					scene.change(global.chooserId)
+				case 1:
+					mode = mEditing
+				}
+			},
+			primaryCol: global.bgColor,
+			secondaryCol: global.railColor}
+		lvl.dg.init()
+	})
 }
 
 fn snap*(v, s: th.fu): th.fu {
@@ -46,77 +69,73 @@ fn snap*(v, s: th.fu): th.fu {
 }
 
 fn setUi*() {
-	edUi = ui.mkGrid(3, 1)
+	edUi = ui.mkGrid(4, 1)
 	edUi.elements = []ui.Element{
-		ui.mkLabel(ui.PixelFont{}, "RUN", th.black, 1),
-		ui.mkLabel(ui.PixelFont{}, "TEST", th.black, 1),
-		ui.mkLabel(ui.PixelFont{}, "", th.black, 1)}
+		ui.mkLabel(global.fontReg, "RUN", th.black, 1),
+		ui.mkLabel(global.fontReg, "TEST", th.black, 1),
+		ui.mkLabel(global.fontReg, "SAVE", th.black, 1),
+		ui.mkLabel(global.fontReg, "", th.black, 1)}
 	edUi.border = 2
 	edUi.g.t = th.Transform{
-		s: th.Vf2{90, 15},
-		p: th.Vf2{0, global.cam.h-15}}
+		s: th.Vf2{60, 10},
+		p: th.Vf2{0, global.cam.h-10}}
 	
-	btn := ^ui.Label(edUi.elements[0])
-	btn.center = true
-	btn.bgColor = rail.railColor
-	btn.g.ctx = btn
-	btn.g.onEvent = fn(eventType: th.uu, ctx: interface{}) {
-		if eventType != ui.eventRelease {
-			return
-		}
+	util.initBtn(^ui.Label(edUi.elements[0]), th.Vf2{},
+		fn(eventType: th.uu, ctx: interface{}) {
+			if eventType != ui.eventRelease {
+				return
+			}
+  
+			launchTest()
+	})
 
-		launchTest()
-	}
-
-	btn = ^ui.Label(edUi.elements[1])
-	btn.center = true
-	btn.bgColor = rail.railColor
-	btn.g.ctx = btn
-	btn.g.onEvent = fn(eventType: th.uu, ctx: interface{}) {
-		if eventType != ui.eventRelease {
-			return
-		}
-
+	util.initBtn(^ui.Label(edUi.elements[1]), th.Vf2{1, 0},
+		fn(eventType: th.uu, ctx: interface{}) {
+			if eventType != ui.eventRelease {
+				return
+			}
+  
 		lvl.reset()
 		ui.Label(edUi.elements[2]).text = "passed in: " + repr(lvl.test())
-	}
-	btn.g.grid(1, 0)
+	})
 
-	edUi.elements[2].get().grid(2, 0)
+	util.initBtn(^ui.Label(edUi.elements[2]), th.Vf2{2, 0},
+		fn(eventType: th.uu, ctx: interface{}) {
+			if eventType != ui.eventRelease {
+				return
+			}
+  
+		f := std.fopen(savePath, "w")
+		fprintf(f, "%s\n", lvl.sys.export())
+		std.fclose(f)
+	})
 
 	lvlUi = ui.mkGrid(2, 1)
 	lvlUi.elements = []ui.Element{
-		ui.mkLabel(ui.PixelFont{}, "BACK", th.black, 1),
-		ui.mkLabel(ui.PixelFont{}, "SKIP", th.black, 1)}
+		ui.mkLabel(global.fontReg, "BACK", th.black, 1),
+		ui.mkLabel(global.fontReg, "SKIP", th.black, 1)}
 	lvlUi.border = 2
 	lvlUi.g.t = th.Transform{
-		s: th.Vf2{60, 15},
-		p: th.Vf2{0, global.cam.h - 15}}
+		s: th.Vf2{40, 10},
+		p: th.Vf2{0, global.cam.h - 10}}
 	
-	btn = ^ui.Label(lvlUi.elements[0])
-	btn.center = true
-	btn.bgColor = rail.railColor
-	btn.g.ctx = btn
-	btn.g.onEvent = fn(eventType: th.uu, ctx: interface{}) {
-		if eventType != ui.eventRelease {
-			return
-		}
-
+	util.initBtn(^ui.Label(lvlUi.elements[0]), th.Vf2{},
+		fn(eventType: th.uu, ctx: interface{}) {
+			if eventType != ui.eventRelease {
+				return
+			}
+  
 		mode = mEditing
-	}
+	})
 
-	btn = ^ui.Label(lvlUi.elements[1])
-	btn.center = true
-	btn.bgColor = rail.railColor
-	btn.g.ctx = btn
-	btn.g.onEvent = fn(eventType: th.uu, ctx: interface{}) {
-		if eventType != ui.eventRelease {
-			return
-		}
-
+	util.initBtn(^ui.Label(lvlUi.elements[1]), th.Vf2{1, 0},
+		fn(eventType: th.uu, ctx: interface{}) {
+			if eventType != ui.eventRelease {
+				return
+			}
+  
 		lvl.skipSim()
-	}
-	btn.g.grid(1, 0)
+	})
 }
 
 fn handle*() {
@@ -140,8 +159,12 @@ fn handle*() {
 		editor.handle(global.cam)
 		edUi.handle()
 	case mRunning:
-		lvl.handle()
-		lvlUi.handle()
+		if !lvl.simDone {
+			lvl.handle()
+			lvlUi.handle()
+		} else {
+			lvl.dg.handle()
+		}
 	}
 }
 
@@ -155,6 +178,9 @@ fn draw*() {
 	case mRunning:
 		lvl.draw()
 		lvlUi.draw()
+		if lvl.simDone {
+			lvl.dg.draw()
+		}
 	}
 }
 

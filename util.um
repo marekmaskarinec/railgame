@@ -1,7 +1,10 @@
 
 import (
 	"th.um"
+	"ui.um"
 	"std.um"
+
+	"global.um"
 )
 
 fn readall*(name: str): str {
@@ -40,4 +43,15 @@ fn rrand*(min, max: int): int {
 	r := std.rand()
 	r = r % (max - min)
 	return r + min
+}
+
+fn initBtn*(btn: ^ui.Label, gridPos: th.Vf2, eh: fn(eventType: th.uu, ctx: interface{})) {
+	btn.center = true
+	btn.bgColor = global.railColor
+	btn.color = global.bgColor
+	btn.scale = 0.8
+	btn.renderer = global.fontReg
+	btn.g.ctx = btn
+	btn.g.onEvent = eh
+	btn.g.gridPos = gridPos
 }
