@@ -55,3 +55,16 @@ fn initBtn*(btn: ^ui.Label, gridPos: th.Vf2, eh: fn(eventType: th.uu, ctx: inter
 	btn.g.onEvent = eh
 	btn.g.gridPos = gridPos
 }
+
+fn themeBtn*(btn: ^ui.Label, ev: th.uu) {
+	switch ev {
+	case ui.eventJustPress:
+		btn.color = global.railColor
+		btn.bgColor = global.bgColor
+		btn.renderer = global.fontBold
+	case ui.eventRelease:
+		btn.color = global.bgColor
+		btn.bgColor = global.railColor
+		btn.renderer = global.fontReg
+	}
+}

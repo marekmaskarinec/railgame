@@ -127,7 +127,7 @@ fn mkMenuLevel(prefix, path: str): ^MenuLevel {
 		sv := ml.saves[ml.ilist.selection]
 		game.lvl = ml.lvl
 		game.savePath = sv.sysPath + ".ssv"
-		game.lvl.sys = rail.load(util.readall(sv.sysPath + ".ssv"))
+		game.lvl.setSys(rail.load(util.readall(sv.sysPath + ".ssv")))
 		scene.change(global.gameId)
 	}
 
@@ -136,10 +136,14 @@ fn mkMenuLevel(prefix, path: str): ^MenuLevel {
 	ml.newBtn.g.t.p = th.Vf2{global.cam.w/2 + 2, global.cam.h-12}
 	ml.newBtn.g.t.s = th.Vf2{global.cam.w/2 - 4, 10}
 	util.initBtn(ml.newBtn, th.Vf2{}, fn(eventType: th.uu, ctx: interface{}) {
+		args := []interface{}(ctx)
+		lbl := ^ui.Label(args[1])
+		util.themeBtn(lbl, eventType)
+
 		if eventType != ui.eventRelease {
 			return
 		}
-		ml := ^MenuLevel(ctx)
+		ml := ^MenuLevel(args[0])
 
 		name := "new_save_" + std.itoa(len(ml.saves))
 		ml.saves = append(ml.saves, SaveGame{
@@ -154,7 +158,7 @@ fn mkMenuLevel(prefix, path: str): ^MenuLevel {
 		fprintf(f, "%s\n", exportSaves(ml.saves))
 		std.fclose(f)
 	})
-	ml.newBtn.g.ctx = ml
+	ml.newBtn.g.ctx = []interface{}{ml, ml.newBtn}
 
 	return ml
 }

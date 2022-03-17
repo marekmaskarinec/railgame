@@ -18,6 +18,7 @@ type Level* = struct {
 	sys: rail.System
 	name: str
 	pairs: []^rail.Switch
+	pairIds: []int
 	agents: []agent.Agent
 	passesNeeded: int
 	timeToPass: int
@@ -36,7 +37,6 @@ const (
 
 fn (lvl: ^Level) repathAgent*(i: int) {
 	lvl.agents[i].setPath(&lvl.sys, lvl.pairs[i * 2], lvl.pairs[i * 2 + 1])
-	printf("repathing %d\n", i)
 }
 
 fn (lvl: ^Level) resetAgents*() {
@@ -78,6 +78,10 @@ fn (lvl: ^Level) test*(): int {
 }
 
 fn (lvl: ^Level) startSim*() {
+	for i:=0; i < len(lvl.pairIds); i++ {
+		lvl.pairs[i] = lvl.sys.swis[lvl.pairIds[i]]
+	}
+
 	lvl.simDone = false
 	lvl.simStart = th.time
 	lvl.passes = make([]int, len(lvl.agents))
@@ -147,6 +151,10 @@ fn (lvl: ^Level) draw*() {
 	}
 }
 
+fn (lvl: ^Level) setSys*(sys: rail.System) {
+	lvl.sys = sys
+}
+
 fn load*(dir, src: str): Level {
 	lvl := Level{}
 
@@ -158,8 +166,10 @@ fn load*(dir, src: str): Level {
 
 	sp := strings.split(l[4], " ")
 	lvl.pairs = make([]^rail.Switch, std.atoi(sp[0]) * 2)
+	lvl.pairIds = make([]int, std.atoi(sp[0]) * 2)
 	for i:=1; i < len(sp); i++ {
 		lvl.pairs[i-1] = lvl.sys.swis[std.atoi(sp[i])]
+		lvl.pairIds[i-1] = std.atoi(sp[i])
 	}
 
 	lvl.agents = []agent.Agent{}

@@ -588,6 +588,7 @@ fn (sys: ^System) navigate*(from, to: ^Switch): []^Segment {
 			}
 			
 			if ^int(cost.get(sw.id)) != null && int(cost.get(sw.id)) < score {
+				printf("already there\n")
 				continue
 			}
 
@@ -614,6 +615,7 @@ fn (sys: ^System) navigate*(from, to: ^Switch): []^Segment {
 		}
 	}
 
+	printf("no path\n")
 	return []^Segment{}
 }
 
@@ -856,7 +858,9 @@ fn (sys: ^System) draw*(cam: rect.Rect) {
 		}
 		canvas.drawRect(col, rect.mk(
 			p.x * cellSize, p.y * cellSize, cellSize, cellSize))
-		//canvas.drawText(repr(sw.id), th.Vf2{p.x * cellSize, p.y * cellSize}, th.cyan, 0.8)
+		if global.debugMode {
+			canvas.drawText(repr(sw.id), th.Vf2{p.x * cellSize, p.y * cellSize}, th.cyan, 0.8)
+		}
 	}
 
 	for bk in sys.blck {

@@ -131,6 +131,8 @@ fn handleInput*() {
 		mode = edDebug
 	} else if input.isJustPressed('b') {
 		mode = edBlock
+	} else if input.isJustPressed('u') {
+		global.debugMode = !global.debugMode
 	}
 
 	if input.isJustPressed('s') {

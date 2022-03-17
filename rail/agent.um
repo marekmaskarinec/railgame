@@ -151,6 +151,9 @@ fn (ag: ^Agent) move(delta: th.fu) {
 }
 
 fn (ag: ^Agent) setPath*(sys: ^rail.System, from, to: ^rail.Switch) {
+	printf("len(sys.swis) = %d\n", len(sys.swis))
+	printf("len(sys.segs) = %d\n", len(sys.segs))
+
 	p := sys.navigate(from, to)
 	lastSw := from
 	ag.path = []PathFragment{PathFragment{
