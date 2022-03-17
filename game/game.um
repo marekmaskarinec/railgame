@@ -46,9 +46,18 @@ fn launchTest() {
 	mode = mRunning
 
 	signal.register("sim_done", fn(ctx: interface{}) {
+		passed := 0
+		for dif in level.difficulties {
+			if lvl.simTook < lvl.timeToPass * dif {
+				passed++
+			} else {
+				break
+			}
+		}
+
 		lvl.dg = dialog.Dialog{
-			title: "LEVEL PASSED",
-			text: "TOOK " + repr(lvl.simTook) + "ms",
+			title: "PASSED " + repr(passed) + "OUT OF " + repr(len(level.difficulties)) + "CHALLANGES",
+			text: "TOOK " + repr(lvl.simTook/1000) + "s",
 			buttons: []str{"MENU", "EDITOR"},
 			callback: fn(self: ^dialog.Dialog, choice: int) {
 				switch choice {
