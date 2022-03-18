@@ -1,0 +1,9 @@
+#!/bin/sh
+
+lvldir=`git rev-parse --show-toplevel`/levels
+
+cp ${lvldir}/preset.ssv $1.ssv
+cp ${lvldir}/preset-sys.ssv $1-sys.ssv
+mkdir $1-saves
+touch $1-saves/saves.ssv
+echo lvl $1 >> dirspec.ssv

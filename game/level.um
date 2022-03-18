@@ -47,13 +47,27 @@ fn (lvl: ^Level) resetAgents*() {
 	}
 }
 
+fn (lvl: ^Level) startSim*() {
+	for i:=0; i < len(lvl.pairIds); i++ {
+		lvl.pairs[i] = lvl.sys.swis[lvl.pairIds[i]]
+	}
+
+	lvl.simDone = false
+	lvl.simStart = th.time
+	lvl.passes = make([]int, len(lvl.agents))
+	lvl.simTook = 0
+	lvl.resetAgents()
+}
+
 fn (lvl: ^Level) test*(): int {
 	done := false
+	lvl.startSim()
 
 	const interval = 100
 
 	time := 0
 	for true {
+		time += interval
 		for i,_ag in lvl.agents {
 			ag := &lvl.agents[i]
 
@@ -67,26 +81,14 @@ fn (lvl: ^Level) test*(): int {
 		}
 	
 		for pc in lvl.passes {
-			printf("%s\n", repr(pc))
-			/*if pc => lvl.passesNeeded {
+			if pc >= lvl.passesNeeded {
+				printf("sim done\n")
 				return time
-			}*/
+			}
 		}
 	}
 
 	return time
-}
-
-fn (lvl: ^Level) startSim*() {
-	for i:=0; i < len(lvl.pairIds); i++ {
-		lvl.pairs[i] = lvl.sys.swis[lvl.pairIds[i]]
-	}
-
-	lvl.simDone = false
-	lvl.simStart = th.time
-	lvl.passes = make([]int, len(lvl.agents))
-	lvl.simTook = 0
-	lvl.resetAgents()
 }
 
 fn (lvl: ^Level) finishSim() {
@@ -187,7 +189,8 @@ fn load*(dir, src: str): Level {
 			length: std.atoi(sp[1]),
 			maxSpeed: std.atof(sp[2]),
 			accel: std.atof(sp[3]),
-			braking: std.atof(sp[4])})
+			braking: std.atof(sp[4]),
+			id: i-4})
 	}
 
 	return lvl

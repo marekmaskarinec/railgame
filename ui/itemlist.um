@@ -130,7 +130,6 @@ fn (il: ^ItemList) handle*() {
 				il.g.pressed = true
 			}
 		} else if il.g.pressed {
-			printf("%d\n", il.selection)
 			il.g.onEvent(ui.eventRelease, il.g.ctx)
 			il.g.pressed = false
 		}

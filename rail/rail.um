@@ -555,11 +555,16 @@ fn (sys: ^System) navigate*(from, to: ^Switch): []^Segment {
 	q := list.List{}
 	q.push_front(from)
 
-	cameFrom := map.Map{}
-	cost := map.Map{}
-	cost.set(from.id, 0)
-	hcost := map.Map{}
-	hcost.set(from.id, sys.navDist(from, to))
+	cameFrom := make([]^Segment, sys.swid)
+
+	cost := make([]th.fu, sys.swid)
+	for i:=0; i < len(cost); i++ {
+		cost[i] = -1
+	}
+	cost[from.id] = 0
+
+	hcost := make([]th.fu, sys.swid)
+	hcost[from.id] = sys.navDist(from, to)
 
 	for q.length != 0 {
 		c := ^Switch(q.front.value)
@@ -567,7 +572,7 @@ fn (sys: ^System) navigate*(from, to: ^Switch): []^Segment {
 		if c == to {
 			out := []^Segment{}
 			for c != from {
-				sg := ^Segment(cameFrom.get(c.id))
+				sg := cameFrom[c.id]
 				out = append([]^Segment{ sg }, out)
 				c = sg.oppositeSw(c)
 			}
@@ -579,23 +584,22 @@ fn (sys: ^System) navigate*(from, to: ^Switch): []^Segment {
 				continue
 			}
 
-			score := int(cost.get(c.id)) + len(sg.tiles)
+			score := cost[c.id] + len(sg.tiles)
 			sw := sg.oppositeSw(c)
 
-			cf := ^Segment(cameFrom.get(c.id))
+			cf := cameFrom[c.id]
 			if cf != null && !c.areAdjacent(cf, sg) {
 				continue
 			}
 			
-			if ^int(cost.get(sw.id)) != null && int(cost.get(sw.id)) < score {
-				printf("already there\n")
+			if cost[sw.id] != -1 && cost[sw.id] < score {
 				continue
 			}
 
-			cameFrom.set(sw.id, sg)
-			cost.set(sw.id, score)
+			cameFrom[sw.id] = sg
+			cost[sw.id] = score
 			hscore := score + sys.navDist(sw, to)
-			hcost.set(sw.id, hscore)
+			hcost[sw.id] = hscore
 			set := false
 			for n:=q.front; n != null; n=n.next {
 				s := ^Switch(n.value)
@@ -603,7 +607,7 @@ fn (sys: ^System) navigate*(from, to: ^Switch): []^Segment {
 						break
 				}
 
-				if (!set && real(hcost.get( s.id )) < hscore) || n.next == null {
+				if (!set && hcost[s.id] < hscore) || n.next == null {
 					q.insert_after(n, sw)
 					n = n.next
 				}
@@ -615,7 +619,6 @@ fn (sys: ^System) navigate*(from, to: ^Switch): []^Segment {
 		}
 	}
 
-	printf("no path\n")
 	return []^Segment{}
 }
 

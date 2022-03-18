@@ -38,6 +38,8 @@ type Agent* = struct {
 	// agent state
 	state: int
 
+	color: uint32
+
 	id: int
 }
 
@@ -46,6 +48,10 @@ const (
 	agAccel*
 	agBrake*
 	agDone*
+
+	colorAccel = th.green
+	colorBrake = th.red
+	colorIdle = th.red
 )
 
 var (
@@ -151,9 +157,6 @@ fn (ag: ^Agent) move(delta: th.fu) {
 }
 
 fn (ag: ^Agent) setPath*(sys: ^rail.System, from, to: ^rail.Switch) {
-	printf("len(sys.swis) = %d\n", len(sys.swis))
-	printf("len(sys.segs) = %d\n", len(sys.segs))
-
 	p := sys.navigate(from, to)
 	lastSw := from
 	ag.path = []PathFragment{PathFragment{
@@ -253,11 +256,11 @@ fn (ag: ^Agent) draw() {
 	realLen := ag.length / sz
 	for i:=1.0; i <= realLen; i+=1 {
 		p := c.toScreen(ag.coordsAt(ag.tail + i)).mul(scaler)
-		rail.drawRail(th.green, lp, p)
+		rail.drawRail(ag.color, lp, p)
 		lp = p
 	}
 	p := c.toScreen(ag.coordsAt(ag.tail + realLen)).mul(scaler)
-	rail.drawRail(th.green, lp, p)
+	rail.drawRail(ag.color, lp, p)
 }
 
 fn (ag: ^Agent) handle*(delta: th.fu) {
@@ -267,14 +270,17 @@ fn (ag: ^Agent) handle*(delta: th.fu) {
 
 	switch ag.state {
 	case agIdle:
+		ag.color = colorIdle
 	case agAccel:
 		ag.speed += ag.accel * delta
 		if ag.speed > ag.maxSpeed {
 			ag.speed = ag.maxSpeed
 		}
+		ag.color = colorAccel
 	case agBrake:
 		ag.speed -= ag.braking * delta
 		ag.speed = util.maxf(ag.speed, 0)
+		ag.color = colorBrake
 	case agDone:
 		return
 	}

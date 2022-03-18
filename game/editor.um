@@ -234,6 +234,22 @@ fn handle*(cam: rect.Rect) {
 		viSw = sw^
 	}
 
+	root := cam.toScreen(th.Vf2{})
+	if root.x > 0 {
+		canvas.drawRect(0xff0000aa, rect.mk(0, 0, root.x, cam.h*2))
+	}
+	if root.y > 0 {
+		canvas.drawRect(0xff0000aa, rect.mk(root.x, 0, cam.w*2, root.y))
+	}
+
+	corner := cam.toScreen(rail.sysToWorld(th.Vf2{len(sys.tiles), len(sys.tiles[0])}))
+	if corner.x < global.cam.w {
+		canvas.drawRect(0xff0000aa, rect.mk(corner.x, root.y, cam.w*2, cam.h*2))
+	}
+	if corner.y < global.cam.h {
+		canvas.drawRect(0xff0000aa, rect.mk(root.x, corner.y, cam.w*2, cam.h*2))
+	}
+
 	switch mode {
 	case edPlace:
 		placeMode()
