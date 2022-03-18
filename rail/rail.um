@@ -423,10 +423,14 @@ fn (sys: ^System) canPlace*(tiles: []Tile): bool {
 	for i, t in tiles {
 
 		// check for an adjacent rail in other places than start and end
-		lt := sys.at(t.pos.add(left))^
-		rt := sys.at(t.pos.add(right))^
-		if (lt != null && round(fabs(lt.rotation - t.rotation)) % 180 == 0) ||
-			(rt != null && round(fabs(rt.rotation - t.rotation)) % 180 == 0) {
+		lt := sys.at(t.pos.add(left))
+		rt := sys.at(t.pos.add(right))
+		if lt == null || rt == null {
+			return false
+		}
+
+		if (lt^ != null && round(fabs(lt^.rotation - t.rotation)) % 180 == 0) ||
+			(rt^ != null && round(fabs(rt^.rotation - t.rotation)) % 180 == 0) {
 			return false
 		}
 
