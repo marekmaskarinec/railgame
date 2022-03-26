@@ -2,6 +2,8 @@
 import (
 	"th.um"
 	"ui.um"
+	"ui/grid.um"
+	"ui/label.um"
 	"std.um"
 	"input.um"
 	"signal.um"
@@ -26,8 +28,8 @@ var (
 	lvl*: level.Level
 	mode: int
 
-	edUi: ui.Grid
-	lvlUi: ui.Grid
+	edUi: grid.Grid
+	lvlUi: grid.Grid
 
 	camPos: th.Vf2
 
@@ -79,18 +81,18 @@ fn snap*(v, s: th.fu): th.fu {
 }
 
 fn setUi*() {
-	edUi = ui.mkGrid(5, 1)
+	edUi = grid.mk(5, 1)
 	edUi.elements = []ui.Element{
-		ui.mkLabel(global.fontReg, "RUN", th.black, 1),
-		ui.mkLabel(global.fontReg, "TEST", th.black, 1),
-		ui.mkLabel(global.fontReg, "SAVE", th.black, 1),
-		ui.mkLabel(global.fontReg, "", global.railColor, 1)}
+		label.mk(global.fontReg, "RUN", global.theme, 1),
+		label.mk(global.fontReg, "TEST", global.theme, 1),
+		label.mk(global.fontReg, "SAVE", global.theme, 1),
+		label.mk(global.fontReg, "", global.theme, 1)}
 	edUi.border = 2
 	edUi.g.t = th.Transform{
 		s: th.Vf2{60, 10},
 		p: th.Vf2{0, global.cam.h-10}}
 	
-	util.initBtn(^ui.Label(edUi.elements[0]), th.Vf2{},
+	util.initBtn(^label.Label(edUi.elements[0]), th.Vf2{},
 		fn(eventType: th.uu, ctx: interface{}) {
 			if eventType != ui.eventRelease {
 				return
@@ -99,20 +101,20 @@ fn setUi*() {
 			launchTest()
 	})
 
-	util.initBtn(^ui.Label(edUi.elements[1]), th.Vf2{1, 0},
+	util.initBtn(^label.Label(edUi.elements[1]), th.Vf2{1, 0},
 		fn(eventType: th.uu, ctx: interface{}) {
 			if eventType != ui.eventRelease {
 				return
 			}
   
 		lvl.reset()
-		ui.Label(edUi.elements[3]).text = repr(lvl.test()/1000) + "s"
+		label.Label(edUi.elements[3]).text = repr(lvl.test()/1000) + "s"
 	})
 
 	edUi.elements[3].get().gridPos = th.Vf2{3, 0}
 	edUi.elements[3].get().gridSpan = th.Vf2{2, 1}
 
-	util.initBtn(^ui.Label(edUi.elements[2]), th.Vf2{2, 0},
+	util.initBtn(^label.Label(edUi.elements[2]), th.Vf2{2, 0},
 		fn(eventType: th.uu, ctx: interface{}) {
 			if eventType != ui.eventRelease {
 				return
@@ -123,16 +125,16 @@ fn setUi*() {
 		std.fclose(f)
 	})
 
-	lvlUi = ui.mkGrid(2, 1)
+	lvlUi = grid.mk(2, 1)
 	lvlUi.elements = []ui.Element{
-		ui.mkLabel(global.fontReg, "BACK", th.black, 1),
-		ui.mkLabel(global.fontReg, "SKIP", th.black, 1)}
+		label.mk(global.fontReg, "BACK", global.theme, 1),
+		label.mk(global.fontReg, "SKIP", global.theme, 1)}
 	lvlUi.border = 2
 	lvlUi.g.t = th.Transform{
 		s: th.Vf2{40, 10},
 		p: th.Vf2{0, global.cam.h - 10}}
 	
-	util.initBtn(^ui.Label(lvlUi.elements[0]), th.Vf2{},
+	util.initBtn(^label.Label(lvlUi.elements[0]), th.Vf2{},
 		fn(eventType: th.uu, ctx: interface{}) {
 			if eventType != ui.eventRelease {
 				return
@@ -141,7 +143,7 @@ fn setUi*() {
 		mode = mEditing
 	})
 
-	util.initBtn(^ui.Label(lvlUi.elements[1]), th.Vf2{1, 0},
+	util.initBtn(^label.Label(lvlUi.elements[1]), th.Vf2{1, 0},
 		fn(eventType: th.uu, ctx: interface{}) {
 			if eventType != ui.eventRelease {
 				return

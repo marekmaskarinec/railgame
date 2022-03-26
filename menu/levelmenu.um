@@ -2,6 +2,7 @@
 import (
 	"th.um"
 	"ui.um"
+	"ui/label.um"
 	"std.um"
 	"rect.um"
 	"input.um"
@@ -29,7 +30,7 @@ type MenuLevel* = struct {
 	saves: []SaveGame
 	saveDir: str
 	ilist: itemlist.ItemList
-	newBtn: ^ui.Label
+	newBtn: ^label.Label
 }
 
 type Dir* = struct {
@@ -131,13 +132,13 @@ fn mkMenuLevel(prefix, path: str): ^MenuLevel {
 		scene.change(global.gameId)
 	}
 
-	ml.newBtn = new(ui.Label)
-	ml.newBtn^ = ui.mkLabel(global.fontReg, "NEW SAVE", th.black, 1)
+	ml.newBtn = new(label.Label)
+	ml.newBtn^ = label.mk(global.fontReg, "NEW SAVE", global.theme, 1)
 	ml.newBtn.g.t.p = th.Vf2{global.cam.w/2 + 2, global.cam.h-12}
 	ml.newBtn.g.t.s = th.Vf2{global.cam.w/2 - 4, 10}
 	util.initBtn(ml.newBtn, th.Vf2{}, fn(eventType: th.uu, ctx: interface{}) {
 		args := []interface{}(ctx)
-		lbl := ^ui.Label(args[1])
+		lbl := ^label.Label(args[1])
 		util.themeBtn(lbl, eventType)
 
 		if eventType != ui.eventRelease {

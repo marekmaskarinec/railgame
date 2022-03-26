@@ -162,6 +162,28 @@ fn placeMode*() {
 
 	mp := rail.worldToSys(input.getGlobalMousePos(global.cam)).flr()
 
+	swt := sys.atSwis(mp)
+	if swt != null {
+		sw := swt^
+		if sw != null {
+			var sw2: ^rail.Switch
+			for i:=0; i < len(lvl.pairs); i+=2 {
+				if sw.id == lvl.pairIds[i] {
+					sw2 = lvl.pairs[i+1]
+				}
+				if sw.id == lvl.pairIds[i+1] {
+					sw2 = lvl.pairs[i]
+				}
+			}
+			if sw2 != null {
+				canvas.drawLine(th.green,
+					global.cam.toScreen(rail.sysToWorld(sw.pos)),
+					global.cam.toScreen(rail.sysToWorld(sw2.pos)), 1)
+			}
+		}
+		
+	}
+
 	if hasOrigin {
 		p2 := th.Vf2{ 0, -origin.distanceTo(mp) }.
 			rotated(th.Vf2{0, 0}, angle + 90).

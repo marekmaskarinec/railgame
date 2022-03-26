@@ -60,13 +60,13 @@ fn (lvl: ^Level) startSim*() {
 }
 
 fn (lvl: ^Level) test*(): int {
-	done := false
 	lvl.startSim()
 
 	const interval = 100
 
 	time := 0
-	for true {
+	done := false
+	for !done {
 		time += interval
 		for i,_ag in lvl.agents {
 			ag := &lvl.agents[i]
@@ -80,14 +80,16 @@ fn (lvl: ^Level) test*(): int {
 			}
 		}
 	
+		done = true
 		for pc in lvl.passes {
-			if pc >= lvl.passesNeeded {
-				printf("sim done\n")
-				return time
+			if pc < lvl.passesNeeded {
+				done = false
+				break
 			}
 		}
 	}
 
+	printf("sim done\n")
 	return time
 }
 
@@ -134,11 +136,17 @@ fn (lvl: ^Level) handle*() {
 		ag.handle(th.delta)
 	}
 
+	done := true
 	for np in lvl.passes {
-		if np >= lvl.passesNeeded {
-			lvl.simTook = th.time - lvl.simStart
-			lvl.finishSim()
+		if np < lvl.passesNeeded {
+			done = false
+			break
 		}
+	}
+
+	if done {
+		lvl.simTook = th.time - lvl.simStart
+		lvl.finishSim()
 	}
 }
 

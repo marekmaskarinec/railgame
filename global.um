@@ -1,6 +1,7 @@
 
 import (
 	"th.um"
+	"ui.um"
 	"font.um"
 	"rect.um"
 )
@@ -24,9 +25,16 @@ var (
 	fontBold*: font.Cached
 	
 	debugMode*: bool = false
+
+	theme*: ui.Theme
 )
 
 fn init*() {
 	fontReg = font.mkCached(font.load("montserrat/regular.ttf"), fontScale)
 	fontBold = font.mkCached(font.load("montserrat/bold.ttf"), fontScale)
+	theme = ui.Theme{
+		fg: bgColor,
+		bg: railColor,
+		borderColor: railColor,
+		borderSize: 2}
 }

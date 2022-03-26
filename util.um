@@ -2,6 +2,7 @@
 import (
 	"th.um"
 	"ui.um"
+	"ui/label.um"
 	"std.um"
 
 	"global.um"
@@ -45,26 +46,25 @@ fn rrand*(min, max: int): int {
 	return r + min
 }
 
-fn initBtn*(btn: ^ui.Label, gridPos: th.Vf2, eh: fn(eventType: th.uu, ctx: interface{})) {
+fn initBtn*(btn: ^label.Label, gridPos: th.Vf2, eh: fn(eventType: th.uu, ctx: interface{})) {
 	btn.center = true
-	btn.bgColor = global.railColor
-	btn.color = global.bgColor
 	btn.scale = 0.8
 	btn.renderer = global.fontReg
 	btn.g.ctx = btn
 	btn.g.onEvent = eh
 	btn.g.gridPos = gridPos
+	btn.g.theme = global.theme
 }
 
-fn themeBtn*(btn: ^ui.Label, ev: th.uu) {
+fn themeBtn*(btn: ^label.Label, ev: th.uu) {
 	switch ev {
 	case ui.eventJustPress:
-		btn.color = global.railColor
-		btn.bgColor = global.bgColor
+		btn.g.theme.fg = global.railColor
+		btn.g.theme.bg = global.bgColor
 		btn.renderer = global.fontBold
 	case ui.eventRelease:
-		btn.color = global.bgColor
-		btn.bgColor = global.railColor
+		btn.g.theme.fg = global.bgColor
+		btn.g.theme.bg = global.railColor
 		btn.renderer = global.fontReg
 	}
 }
