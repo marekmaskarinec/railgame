@@ -1,12 +1,19 @@
 rail.um
 ________________________________________________________________________________
 
+________________________________________________________________________________
+
 
 type System* = struct {
 	// map of what switch is on said position
 	swisMap: [][]^Switch
 	// map of what tile is on said position
 	tiles: [][]^Tile
+	// map of what block is on said position
+	blckMap: [][]^Block
+
+	// list of blocks
+	blck: []^Block
 	// list of switches
 	swis: []^Switch
 	// list of segments
@@ -17,30 +24,6 @@ type System* = struct {
 }
 
 
-
-________________________________________________________________________________
-
-
-type Agent* = struct {
-	length: int
-	
-	// max speed in tiles per ms
-	maxSpeed: th.fu
-	// current speed in tiles per ms
-	speed: th.fu
-	// acceleration per ms
-	accel: th.fu
-	// braking per ms
-	braking: th.fu
-
-	// in which segment the tail is
-	tail: ^Segment
-	// index on which tile the tail is
-	taili: int
-}
-
-
-A subset of train used in simulation
 
 ________________________________________________________________________________
 
@@ -68,6 +51,12 @@ ________________________________________________________________________________
 fn (sys: ^System) atSwis(p: th.Vf2): ^^Switch
 
 return a pointer to position in switch map
+
+________________________________________________________________________________
+
+
+fn (sys: ^System) atBlck(p: th.Vf2): ^^Block
+
 
 ________________________________________________________________________________
 
@@ -128,6 +117,12 @@ creates a segment
 ________________________________________________________________________________
 
 
+fn (sys: ^System) mkBlock*(p, s: th.Vf2): ^Block
+
+
+________________________________________________________________________________
+
+
 fn (sg: ^Segment) rebuildTiles(sys: ^System)
 
 rebuilds segments's tiles in the tile map
@@ -172,16 +167,16 @@ checks whether a list of tiles can be placed into the system
 ________________________________________________________________________________
 
 
-fn (sw: ^Segment) angle(end: int): int
+fn (sg: ^Segment) angle(sw: ^Switch): int
 
 returns angle between a segment and a switch
 
 ________________________________________________________________________________
 
 
-fn (sw: ^Switch) areAdjacent(si1, si2: int): bool
+fn (sw: ^Switch) areAdjacent(sg1, sg2: ^Segment): bool
 
-checks whether train can go between two segments on a switch
+checks whether two segmeent are adjacent
 
 ________________________________________________________________________________
 
@@ -221,7 +216,31 @@ navigates between two switches
 ________________________________________________________________________________
 
 
-fn (sys: ^System) draw(cam: rect.Rect)
+fn (sys: ^System) export*(): str
+
+
+________________________________________________________________________________
+
+
+fn load*(src: str): System
+
+
+________________________________________________________________________________
+
+
+fn drawRail*(col: uint32, s, e: th.Vf2)
+
+
+________________________________________________________________________________
+
+
+fn drawArrow*(col: uint32, p: th.Vf2, a: th.fu)
+
+
+________________________________________________________________________________
+
+
+fn (sys: ^System) draw*(cam: rect.Rect)
 
 draws the system
 
