@@ -156,7 +156,7 @@ fn (lvl: ^Level) draw*() {
 		return
 	}
 
-	for i,ag in lvl.agents {
+	for _, ag in lvl.agents {
 		ag.draw()
 	}
 }

@@ -206,7 +206,7 @@ fn placeMode*() {
 		}
 
 		swis := scanSwitches(origin, p2)
-		for sw in swis {
+		for _, sw in swis {
 			canvas.drawLine(0x00ff0099,
 				global.cam.toScreen(rail.sysToWorld(p2).add(th.Vf2{1, 1})),
 				global.cam.toScreen(rail.sysToWorld(sw.pos).add(th.Vf2{1, 1})), 1)

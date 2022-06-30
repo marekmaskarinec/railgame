@@ -5,8 +5,8 @@ import (
 	"canvas.um"
 
 	"rail.um"
-	"util.um"
-	"global.um"
+	"../util.um"
+	"../global.um"
 )
 
 type PathFragment* = struct {
@@ -235,7 +235,7 @@ fn (ag: ^Agent) reset*() {
 	}
 }
 
-fn (ag: ^Agent) draw() {
+fn (ag: ^Agent) draw*() {
 	c := global.cam
 	c.x /= rail.tileSize
 	c.y /= rail.tileSize
@@ -286,6 +286,5 @@ fn (ag: ^Agent) handle*(delta: th.fu) {
 	}
 
 	ag.move(delta)
-	ag.draw()
 }
 

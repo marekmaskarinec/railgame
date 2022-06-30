@@ -78,7 +78,7 @@ fn loadSaves*(prefix: str, src: str): []SaveGame {
 	saves := []SaveGame{}
 	
 	lines := strings.split(src, "\n")
-	for l in lines {
+	for i, l in lines {
 		if len(l) == 0 || l[0] == '#' {
 			continue
 		}
@@ -92,7 +92,7 @@ fn loadSaves*(prefix: str, src: str): []SaveGame {
 
 fn exportSaves*(saves: []SaveGame): str {
 	out := ""
-	for sv in saves {
+	for _, sv in saves {
 		out += "sv " + sv.name + "\n"
 	}
 	return out
@@ -134,8 +134,9 @@ fn mkMenuLevel(prefix, path: str): ^MenuLevel {
 
 	ml.newBtn = new(label.Label)
 	ml.newBtn^ = label.mk(global.fontReg, "NEW SAVE", global.theme, 1)
-	ml.newBtn.g.t.p = th.Vf2{global.cam.w/2 + 2, global.cam.h-12}
-	ml.newBtn.g.t.s = th.Vf2{global.cam.w/2 - 4, 10}
+	ml.newBtn.g.r = rect.mk(
+		global.cam.w/2 + 2, global.cam.h-12,
+		global.cam.w/2 - 4, 10)
 	util.initBtn(ml.newBtn, th.Vf2{}, fn(eventType: th.uu, ctx: interface{}) {
 		args := []interface{}(ctx)
 		lbl := ^label.Label(args[1])
@@ -172,7 +173,7 @@ fn loadDir*(prefix: str, src: str): ^Dir {
 		levels: []^MenuLevel{}}
 
 	lines := strings.split(src, "\n")
-	for l in lines {
+	for _, l in lines {
 		if len(l) == 0 || l[0] == "#" {
 			continue
 		}
@@ -191,11 +192,11 @@ fn loadDir*(prefix: str, src: str): ^Dir {
 
 	d.items = []itemlist.Item{}
 
-	for dir in d.dirs {
+	for _, dir in d.dirs {
 		d.items = append(d.items, itemlist.Item{text: "DIR " + dir.name})
 	}
 
-	for lvl in d.levels {
+	for _, lvl in d.levels {
 		d.items = append(d.items, itemlist.Item{text: "LVL " + lvl.lvl.name})
 	}
 

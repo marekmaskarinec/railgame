@@ -6,7 +6,6 @@ import (
 	"canvas.um"
 	"../libs/list.um"
 	"../libs/strings.um"
-	"../umka-lang/import/map.um"
 
 	"../util.um"
 	"../global.um"
@@ -106,7 +105,7 @@ fn (sys: ^System) at*(p: th.Vf2): ^^Tile {
 }
 
 // return a pointer to position in switch map
-fn (sys: ^System) atSwis(p: th.Vf2): ^^Switch {
+fn (sys: ^System) atSwis*(p: th.Vf2): ^^Switch {
 	if p.x < 0 || p.y < 0 || p.x >= len(sys.swisMap[0]) || p.y >= len(sys.swisMap) {
 		return null
 	}
@@ -114,7 +113,7 @@ fn (sys: ^System) atSwis(p: th.Vf2): ^^Switch {
 	return &sys.swisMap[trunc(p.x)][trunc(p.y)]
 }
 
-fn (sys: ^System) atBlck(p: th.Vf2): ^^Block{
+fn (sys: ^System) atBlck*(p: th.Vf2): ^^Block{
 	if p.x < 0 || p.y < 0 || p.x >= len(sys.blckMap[0]) || p.y >= len(sys.blckMap) {
 		return null
 	}
@@ -641,21 +640,21 @@ fn (sys: ^System) export*(): str {
 	out.write_str(repr(len(sys.segs)) + repr(len(sys.swis)) + repr(len(sys.blck)) + "\n")
 
 	out.write_str("# segments\n")
-	for sg in sys.segs {
+	for i, sg in sys.segs {
 		out.write_str("sg ")
 		out.write_str(repr(sg.swis[0].id))
 		out.write_str(repr(sg.swis[1].id))
 		out.write_str(repr(sg.dir))
 		out.write_str(repr(len(sg.tiles)))
 
-		for t in sg.tiles {
+		for _, t in sg.tiles {
 			out.write_str(repr(t.pos.x) + repr(t.pos.y) + repr(t.rotation))
 		}
 		out.write_str("\n")
 	}
 
 	out.write_str("# switches\n")
-	for sw in sys.swis {
+	for _, sw in sys.swis {
 		out.write_str("sw ")
 		out.write_str(repr(sw.pos.x) + repr(sw.pos.y))
 		out.write_str(repr(len(sw.segs)))
@@ -666,7 +665,7 @@ fn (sys: ^System) export*(): str {
 	}
 
 	out.write_str("# blocks\n")
-	for bk in sys.blck {
+	for _, bk in sys.blck {
 		out.write_str("bk " +
 			repr(bk.p.x) + repr(bk.p.y) +
 			repr(bk.s.x) + repr(bk.s.y))
@@ -832,7 +831,7 @@ fn (sys: ^System) draw*(cam: rect.Rect) {
 
 	scaler := th.Vf2{tileSize, tileSize}
 
-	for sg in sys.segs {
+	for _, sg in sys.segs {
 		col := global.railColor
 
 		s := c.toScreen(sg.swis[0].pos).mul(scaler)
@@ -857,7 +856,7 @@ fn (sys: ^System) draw*(cam: rect.Rect) {
 		drawRail(global.railColor, s, c.toScreen(sg.swis[1].pos).mul(scaler))
 	}
 
-	for sw in sys.swis {
+	for _, sw in sys.swis {
 		p := c.toScreen(sw.pos)
 		col := sw.color
 		if sw.occ != 0 {
@@ -870,7 +869,7 @@ fn (sys: ^System) draw*(cam: rect.Rect) {
 		}
 	}
 
-	for bk in sys.blck {
+	for _, bk in sys.blck {
 		// temporary draw function
 		p := c.toScreen(bk.p)
 		for x:=trunc(p.x); x < p.x + bk.s.x; x++ {

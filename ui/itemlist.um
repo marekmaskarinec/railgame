@@ -7,8 +7,8 @@ import (
 	"input.um"
 	"canvas.um"
 
-	"rail.um"
-	"global.um"
+	"../global.um"
+	"../rail/rail.um"
 )
 
 type Item* = struct {
@@ -34,10 +34,10 @@ type ItemList* = struct {
 
 fn (i: ^Item) draw(ren: ui.TextRenderer, pos, dm: th.Vf2, fg, bg: uint32, fs: th.fu) {
 	canvas.drawRect(bg, rect.mk(pos.x, pos.y, dm.x, dm.y))
-	pos.x += 1 * fs
+	x := 1 * fs
 	if i.img.handle != 0 {
 		i.img.draw(th.Transform{p: pos, s: th.Vf2{1, 1}}, th.white)
-		pos.x += i.img.getDims().x
+		x := i.img.getDims().x
 	}
 
 	ren.draw(i.text, pos, fg, fs)
@@ -57,26 +57,26 @@ fn (il: ^ItemList) doesHover(): bool {
 	if len(il.items) < il.limit {
 		h = len(il.items) * il.itemHeight()
 	}
-	return (mp.x > il.g.t.p.x + il.scrollBarWidth && mp.x < il.g.t.p.x + il.g.t.s.x &&
-		mp.y > il.g.t.p.y && mp.y < il.g.t.p.y + h)
+	return (mp.x > il.g.r.x + il.scrollBarWidth && mp.x < il.g.r.x + il.g.r.w &&
+		mp.y > il.g.r.y && mp.y < il.g.r.y + h)
 }
 
 fn (il: ^ItemList) handleScrollBar() {
 	iw := real(il.limit)/len(il.items) * il.itemHeight()
 	mp := input.getMousePos()
 
-	if !(mp.x > il.g.t.p.x && mp.y < il.g.t.p.x + il.scrollBarWidth &&
-	   mp.y > il.g.t.p.y + il.offset * iw && mp.y < il.g.t.p.y + (il.offset + il.limit) * iw) {
+	if !(mp.x > il.g.r.x && mp.y < il.g.r.x + il.scrollBarWidth &&
+	   mp.y > il.g.r.y + il.offset * iw && mp.y < il.g.r.y + (il.offset + il.limit) * iw) {
 		return
 	}
 
 	if input.isJustPressed(input.mouse1) {
-		il.scrollOffset = mp.y - il.g.t.p.y - il.offset * iw
+		il.scrollOffset = mp.y - il.g.r.y - il.offset * iw
 		return
 	}
 
 	if input.isPressed(input.mouse1) {
-		il.offset = trunc((mp.y - il.g.t.p.y - il.scrollOffset) / iw)
+		il.offset = trunc((mp.y - il.g.r.y - il.scrollOffset) / iw)
 
 		if il.offset < 0 {
 			il.offset = 0
@@ -118,7 +118,7 @@ fn (il: ^ItemList) handle*() {
 		}
 
 		if !il.clickToSelect || input.isJustPressed(input.mouse1) {
-			il.selection = trunc((mp.y - il.g.t.p.y) / il.itemHeight() + il.offset)
+			il.selection = trunc((mp.y - il.g.r.y) / il.itemHeight() + il.offset)
 			il.g.onEvent(ui.eventHover, il.g.ctx)
 		}
 
@@ -142,7 +142,7 @@ fn (il: ^ItemList) drawScrollBar() {
 	iw := real(il.limit)/len(il.items) * il.itemHeight()
 
 	canvas.drawRect(global.railColor, rect.mk(
-		il.g.t.p.x, il.g.t.p.y + iw * il.offset,
+		il.g.r.x, il.g.r.y + iw * il.offset,
 		il.scrollBarWidth, iw * il.limit))	
 }
 
@@ -158,7 +158,7 @@ fn (il: ^ItemList) draw*() {
 
 	il.drawScrollBar()
 
-	p := il.g.t.p
+	p := il.g.r.getPos()
 	for i:=il.offset; i < il.offset + il.limit && i < len(il.items); i++ {
 		fg := global.railColor
 		bg := global.bgColor
@@ -168,7 +168,7 @@ fn (il: ^ItemList) draw*() {
 		}
 
 		il.items[i].draw(il.renderer, th.Vf2{p.x + il.scrollBarWidth, p.y},
-			th.Vf2{il.g.t.s.x - il.scrollBarWidth, il.itemHeight()},
+			th.Vf2{il.g.r.w, il.itemHeight()},
 			fg, bg, il.fontSize)
 		p.y += il.itemHeight()
 	}
@@ -180,9 +180,7 @@ fn mk*(p, s: th.Vf2, r: ui.TextRenderer, fontSize: th.fu): ItemList {
 	il := ItemList{}
 
 	il.g = ui.Generic{
-		t: th.Transform{
-			p: p,
-			s: s}}
+		r: rect.mk(p.x, p.y, s.x, s.y)}
 	il.renderer = r
 	il.fontSize = fontSize
 	il.limit = trunc(s.y / il.itemHeight())

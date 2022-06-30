@@ -5,14 +5,15 @@ import (
 	"ui/grid.um"
 	"ui/label.um"
 	"std.um"
+	"rect.um"
 	"input.um"
 	"signal.um"
 
 	"level.um"
-	"scene.um"
 	"editor.um"
-	"global.um"
 	"../util.um"
+	"../scene.um"
+	"../global.um"
 	"../ui/dialog.um"
 	"../rail/rail.um"
 )
@@ -88,9 +89,9 @@ fn setUi*() {
 		label.mk(global.fontReg, "SAVE", global.theme, 1),
 		label.mk(global.fontReg, "", global.theme, 1)}
 	edUi.border = 2
-	edUi.g.t = th.Transform{
-		s: th.Vf2{60, 10},
-		p: th.Vf2{0, global.cam.h-10}}
+	edUi.g.r = rect.mk(
+		0, global.cam.h-10,
+		60, 10)
 	
 	util.initBtn(^label.Label(edUi.elements[0]), th.Vf2{},
 		fn(eventType: th.uu, ctx: interface{}) {
@@ -130,9 +131,9 @@ fn setUi*() {
 		label.mk(global.fontReg, "BACK", global.theme, 1),
 		label.mk(global.fontReg, "SKIP", global.theme, 1)}
 	lvlUi.border = 2
-	lvlUi.g.t = th.Transform{
-		s: th.Vf2{40, 10},
-		p: th.Vf2{0, global.cam.h - 10}}
+	lvlUi.g.r = rect.mk(
+		0, global.cam.h - 10,
+		40, 10)
 	
 	util.initBtn(^label.Label(lvlUi.elements[0]), th.Vf2{},
 		fn(eventType: th.uu, ctx: interface{}) {
